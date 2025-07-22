@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:store_app/views/screens/home_screen.dart';
 
 class MainView extends StatefulWidget {
   const MainView({super.key});
@@ -11,7 +12,7 @@ class _MainViewState extends State<MainView> {
   int _pageIndex = 0;
 
   final List<Widget> _screens = [
-    Center(child: Text('Plantas', style: TextStyle(fontSize: 24))),
+    HomeScreen(),
     Center(child: Text('Historial', style: TextStyle(fontSize: 24))),
     Center(child: Text('Cuenta', style: TextStyle(fontSize: 24))),
   ];
