@@ -11,27 +11,46 @@ class RegisterForm extends StatefulWidget {
   State<RegisterForm> createState() => _RegisterFormState();
 }
 
-class _RegisterFormState extends State<RegisterForm> {
+class _RegisterFormState extends State<RegisterForm> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-    // instancia de clase auth  para TENER ACCESO A LAS FUNCIONES DE LA CLASE, para recibir los parametros dijitados por el usuari para su posterior envio
   final _auth = UserAuthController();
-
-  late String email= ''; //es late porque aún no conocemos su valor pero lo conoceremos más adelante
-  late String name= '';
-  late String password= '';
+  late String email = '';
+  late String name = '';
+  late String password = '';
 
   bool procesing = false;
   bool _PasswordVisible = false;
 
+  late AnimationController _controller;
+  late Animation<Offset> _offsetAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _offsetAnimation = Tween<Offset>(
+      begin: const Offset(0.0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    ));
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   Future<void> registerUser() async {
-    final isValid = _formKey.currentState!.validate(); // limpia formulario
-
-
+    final isValid = _formKey.currentState!.validate();
     if (!isValid) return;
-
     _formKey.currentState!.save();
-
     setState(() => procesing = true);
 
     try {
@@ -41,15 +60,12 @@ class _RegisterFormState extends State<RegisterForm> {
         name: name,
         password: password,
       );
-
       _formKey.currentState!.reset();
-
       setState(() {
         email = '';
         name = '';
         password = '';
       });
-
     } catch (e) {
       debugPrint('Error al registrarse: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -60,181 +76,156 @@ class _RegisterFormState extends State<RegisterForm> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inputFillColor = isDark ? Colors.grey[850] : Colors.grey[100];
+    final textColor = isDark ? Colors.white : Colors.black;
+
     return Scaffold(
-      backgroundColor: Colors.white.withOpacity(0.95),
+      backgroundColor: isDark ? Colors.black : Colors.white,
       body: Stack(
         children: [
-          // Ola decorativa
-          Positioned(
+/*          Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: SvgPicture.asset(
               'assets/svg/wave.svg',
               width: MediaQuery.of(context).size.width,
-              height: 90,
+              height: 110,
               fit: BoxFit.cover,
             ),
-          ),
-
+          ),*/
           Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    //WIDGET DE TEXTO --------------------------------------------------------------
-                    Text( 
-                      "Crear cuenta",
-                      style: GoogleFonts.lato(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
+            child: SlideTransition(
+              position: _offsetAnimation,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 16),
+                      Text(
+                        "Crear cuenta",
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
                       ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    //WIDGET DE TEXTO --------------------------------------------------------------
-                    Text(
-                      "Regístrate y empieza a cuidar tus plantas",
-                      style: GoogleFonts.lato(fontSize: 14),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    //WIDGET DE IMAGEN --------------------------------------------------------------, muestra la imagen desde la carpeta assets/images, se le puede dar un ancho y alto
-                    Image.asset(
-                      'assets/images/pexels-kelly-1179532-2559933-Photoroom.png',
-                      width: 200,
-                      height: 200,
-                    ),
-
-                    const SizedBox(height: 25),
-
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Correo electrónico',
-                          style: GoogleFonts.nunitoSans(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
+                      const SizedBox(height: 8),
+                      Text(
+                        "Regístrate y empieza a cuidar tus plantas",
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),/*
+                      const SizedBox(height: 20),
+                      Image.asset(
+                        'assets/images/pexels-kelly-1179532-2559933-Photoroom.png',
+                        height: 180,
+                      ),*/
+                      const SizedBox(height: 30),
+                      Text(
+                        'Correo electrónico',
+                        style: GoogleFonts.nunitoSans(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        onSaved: (value) => email = value ?? '',
+                        validator: (value) => (value == null || value.isEmpty)
+                            ? 'Por favor ingrese su correo'
+                            : null,
+                        style: TextStyle(color: textColor),
+                        decoration: InputDecoration(
+                          hintText: 'Ejemplo: usuario@gmail.com',
+                          prefixIcon: const Icon(Icons.email_outlined),
+                          filled: true,
+                          fillColor: inputFillColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        // WIDGET DE CAMPO DE TEXTO --------------------------------------------------------------
-                        TextFormField(
-                          onSaved: (value) => email = value ?? '',
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor ingrese su correo';
-                            }
-                            
-                            return null;
-                          },
-                          decoration: InputDecoration( // Decoracion del campo de texto, el input es porque es de entrada 
-                            hintText: 'Ejemplo: usuario@gmail.com',
-                            prefixIcon: const Icon(Icons.email_outlined),// prefixIcon sirve para mostrar un icono antes del texto del campo de texto
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-
-                    Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Nombre completo',
-                            style: GoogleFonts.nunitoSans(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            onSaved: (value) => name = value ?? '',
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor ingrese su nombre completo';
-                              }
-                              return null; // Si el campo de texto no esta vacio, devuelve null, lo que significa que no hay error de validacion
-                            },
-                            decoration: InputDecoration(
-                              hintText: 'Ejemplo: Juan Pérez',
-                              prefixIcon: const Icon(Icons.person_outline),
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
                       const SizedBox(height: 20),
-
-
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Contraseña',
-                          style: GoogleFonts.nunitoSans(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
+                      Text(
+                        'Nombre completo',
+                        style: GoogleFonts.nunitoSans(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        onSaved: (value) => name = value ?? '',
+                        validator: (value) => (value == null || value.isEmpty)
+                            ? 'Por favor ingrese su nombre completo'
+                            : null,
+                        style: TextStyle(color: textColor),
+                        decoration: InputDecoration(
+                          hintText: 'Ejemplo: Juan Pérez',
+                          prefixIcon: const Icon(Icons.person_outline),
+                          filled: true,
+                          fillColor: inputFillColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          obscureText: !_PasswordVisible,
-                          onSaved: (value) => password = value ?? '', 
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor ingrese su contraseña';
-                            }
-                            return null; // Si el campo de texto no esta vacio, devuelve null, lo que significa que no hay error de validacion
-                          },
-                          decoration: InputDecoration(
-                            hintText: 'Mínimo 8 caracteres',
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _PasswordVisible ? Icons.visibility : Icons.visibility_off,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _PasswordVisible = !_PasswordVisible;
-                                });
-                              },
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Contraseña',
+                        style: GoogleFonts.nunitoSans(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        obscureText: !_PasswordVisible,
+                        onSaved: (value) => password = value ?? '',
+                        validator: (value) => (value == null || value.isEmpty)
+                            ? 'Por favor ingrese su contraseña'
+                            : null,
+                        style: TextStyle(color: textColor),
+                        decoration: InputDecoration(
+                          hintText: 'Mínimo 8 caracteres',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _PasswordVisible ? Icons.visibility : Icons.visibility_off,
+                              color: Colors.grey,
                             ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
+                            onPressed: () {
+                              setState(() {
+                                _PasswordVisible = !_PasswordVisible;
+                              });
+                            },
+                          ),
+                          filled: true,
+                          fillColor: inputFillColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 30),
-
-
-                    // Botón registrarse
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton.icon(
+                      ),
+                      const SizedBox(height: 30),
+                      ElevatedButton.icon(
                         icon: procesing
                             ? const SizedBox(
                                 width: 20,
@@ -245,55 +236,53 @@ class _RegisterFormState extends State<RegisterForm> {
                                 ),
                               )
                             : const Icon(Icons.person_add, color: Colors.white),
-
                         label: Text(
                           procesing ? 'Registrando...' : 'Registrarse',
-                          style: GoogleFonts.lato(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                             color: Colors.white,
                           ),
                         ),
                         onPressed: procesing ? null : registerUser,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF317E30),
+                          backgroundColor: const Color(0xFF388E3C),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(16),
                           ),
                         ),
                       ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Ir al login
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '¿Ya tienes cuenta?',
-                          style: GoogleFonts.roboto(letterSpacing: 1),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => LoginForm()),
-                            );
-                          },
-                          child: Text(
-                            'Inicia sesión',
-                            style: GoogleFonts.roboto(
-                              color: const Color(0xFF5fa65e),
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '¿Ya tienes cuenta?',
+                            style: GoogleFonts.poppins(
+                              letterSpacing: 0.5,
+                              color: textColor,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-
-                  ],
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const LoginForm()),
+                              );
+                            },
+                            child: Text(
+                              'Inicia sesión',
+                              style: GoogleFonts.poppins(
+                                color: const Color(0xFF4CAF50),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

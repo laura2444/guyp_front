@@ -1,203 +1,217 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+///import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:store_app/controllers/user_auth_controller.dart';
 import 'package:store_app/views/screens/auth_view/register_form.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class LoginForm extends StatefulWidget { // widget que cambia en el tiempo 
+class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
 
   @override
   State<LoginForm> createState() => _LoginFormState();
 }
 
-class _LoginFormState extends State<LoginForm> {
-  final _formKey = GlobalKey<FormState>();// Clave global para el formulario, se usa para validar el formulario, es final porque no se va a cambiar en tiempo de ejecución, es decir, no se va a modificar el valor de la variable
-  final _auth = UserAuthController(); 
+class _LoginFormState extends State<LoginForm> with SingleTickerProviderStateMixin {
+  final _formKey = GlobalKey<FormState>();
+  final _auth = UserAuthController();
   bool _PasswordVisible = false;
 
+  late String email = '';
+  late String password = '';
 
-  late String email='';    // Variables que guardan los valores del formulario
-  late String password='';
+  bool procesing = false;
+  late AnimationController _controller;
+  late Animation<Offset> _offsetAnimation;
 
-  bool procesing = false; // Controla el estado de carga
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _offsetAnimation = Tween<Offset>(
+      begin: const Offset(0.0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    ));
 
-  // Función que maneja el inicio de sesión
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> saveUserSession(Map<String, dynamic> userData) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_id', userData['id']);
+    await prefs.setString('email', userData['email']);
+    await prefs.setString('name', userData['name']);
+    await prefs.setString('token', userData['token']);
+ }
+
   Future<void> loginUser() async {
-    final isValid = _formKey.currentState!.validate(); // Verifica si el formulario es válido
-
-    if (!isValid) return; // Si el formulario no es válido, termina todo
-
+    final isValid = _formKey.currentState!.validate();
+    if (!isValid) return;
     _formKey.currentState!.save();
-    setState(() => procesing = true); //indica que se inicia sesión
-
+    setState(() => procesing = true);
     try {
       await _auth.loginUsers(
         context: context,
         email: email,
         password: password,
       );
-
-      _formKey.currentState!.reset(); // Limpia el formulario después de iniciar sesión
-
+      _formKey.currentState!.reset();
       setState(() {
         email = '';
         password = '';
       });
-
     } catch (e) {
       debugPrint('Error al iniciar sesión: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: ${e.toString()}')),
       );
-    } finally {
+    } 
+    finally {
       setState(() => procesing = false);
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // Scaffold es un widget que proporciona una estructura básica para la pantalla, como la barra de navegación y el cuerpo
-      backgroundColor: Colors.white.withOpacity(0.95), 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inputFillColor = isDark ? Colors.grey[850] : Colors.grey[100];
+    final textColor = isDark ? Colors.white : Colors.black;
+
+    return Scaffold(
+      backgroundColor: isDark ? Colors.black : Colors.white,
       body: Stack(
         children: [
-
-          // DECORACIÓN DE LA OLA SUPERIOR
-          Positioned(
+/*          Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: SvgPicture.asset(
-              'assets/svg/wave.svg', // Ola SVG decorativa
+              'assets/svg/wave.svg',
               width: MediaQuery.of(context).size.width,
-              height: 90,
+              height: 110,
               fit: BoxFit.cover,
             ),
-          ),
-
-          // CONTENIDO DEL FORMULARIO
+          ),*/
           Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              child: Form(
-                key: _formKey, // Asigna la clave global al formulario para poder validarlo
-                child: Column(
-                  children: [  //es una lista de widgets que se mostraran en la columna
-
-                    //  WIDGET DE TEXTO --------------------------------------------------------------
-                    Text(
-                      "Inicio de sesión",
-                      style: GoogleFonts.lato(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
+            child: SlideTransition(
+              position: _offsetAnimation,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 16),
+                      Text(
+                        "Inicio de sesión",
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
                       ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    //  WIDGET DE TEXTO --------------------------------------------------------------
-                    Text(
-                      "Cuida tus plantas con nosotros",
-                      style: GoogleFonts.lato(fontSize: 14),
-                    ),
-
-                    //WIDGET DE IMAGEN --------------------------------------------------------------, muestra la imagen desde la carpeta assets/images, se le puede dar un ancho y alto
-                    Image.asset( 
-                      'assets/images/pexels-kelly-1179532-2559933-Photoroom.png',
-                      width: 200,
-                      height: 200,
-                    ),
-
-                    const SizedBox(height: 25),
-
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Correo electrónico',
-                          style: GoogleFonts.nunitoSans(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
+                      const SizedBox(height: 8),
+                      Text(
+                        "Cuida tus plantas con nosotros",
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      /*const SizedBox(height: 20),
+                      Image.asset(
+                        'assets/images/pexels-kelly-1179532-2559933-Photoroom.png',
+                        height: 180,
+                      ),*/
+                      const SizedBox(height: 30),
+                      Text(
+                        'Correo electrónico',
+                        style: GoogleFonts.nunitoSans(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        onSaved: (value) => email = value ?? '',
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Por favor ingrese su correo';
+                          }
+                          return null;
+                        },
+                        style: TextStyle(color: textColor),
+                        decoration: InputDecoration(
+                          hintText: 'Ejemplo: usuario@gmail.com',
+                          prefixIcon: const Icon(Icons.email_outlined),
+                          filled: true,
+                          fillColor: inputFillColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          onSaved: (value) => email = value ?? '',
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor ingrese su correo';
-                            }
-                            return null; // Si el campo de texto no esta vacio, devuelve null para indicar que no hay errores de validación
-                          },
-                          decoration: InputDecoration(
-                            hintText: 'Ejemplo: usuario@gmail.com',
-                            prefixIcon: const Icon(Icons.email_outlined),
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Contraseña',
+                        style: GoogleFonts.nunitoSans(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        obscureText: !_PasswordVisible,
+                        onSaved: (value) => password = value ?? '',
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Por favor ingrese su contraseña';
+                          }
+                          return null;
+                        },
+                        style: TextStyle(color: textColor),
+                        decoration: InputDecoration(
+                          hintText: 'Mínimo 8 caracteres',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _PasswordVisible ? Icons.visibility : Icons.visibility_off,
+                              color: Colors.grey,
                             ),
+                            onPressed: () {
+                              setState(() {
+                                _PasswordVisible = !_PasswordVisible;
+                              });
+                            },
+                          ),
+                          filled: true,
+                          fillColor: inputFillColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
                           ),
                         ),
-                      ],
-                    ),
-
-
-
-                    const SizedBox(height: 20),
-
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Contraseña',
-                          style: GoogleFonts.nunitoSans(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          obscureText: !_PasswordVisible,
-                          onSaved: (value) => password = value ?? '',
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor ingrese su contraseña';
-                            }
-                            return null;
-                          },
-                          decoration: InputDecoration(
-                            hintText: 'Mínimo 8 caracteres',
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _PasswordVisible ? Icons.visibility : Icons.visibility_off,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _PasswordVisible = !_PasswordVisible;
-                                });
-                              },
-                            ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-
-                    const SizedBox(height: 30),
-
-                    // BOTÓN INICIAR SESIÓN
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton.icon(
+                      ),
+                      const SizedBox(height: 30),
+                      ElevatedButton.icon(
                         icon: procesing
                             ? const SizedBox(
                                 width: 20,
@@ -208,60 +222,57 @@ class _LoginFormState extends State<LoginForm> {
                                 ),
                               )
                             : const Icon(Icons.login, color: Colors.white),
-
                         label: Text(
                           procesing ? 'Iniciando...' : 'Iniciar sesión',
-                          style: GoogleFonts.lato(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                             color: Colors.white,
                           ),
                         ),
                         onPressed: procesing ? null : loginUser,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF317E30), // Verde institucional
+                          backgroundColor: const Color(0xFF388E3C),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(16),
                           ),
                         ),
                       ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // WIDGET de fila, hace que todos los elementos que se pongan dentro se muestren horizontalmente, uno al lado de otro
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '¿No tienes cuenta?',
-                          style: GoogleFonts.roboto(letterSpacing: 1),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => RegisterForm()),
-                            ); // Navega a la pantalla de registro al tocar el texto, materialPageRoute es una clase que crea una ruta para navegar a otra pantall
-                          },
-                          child: Text(
-                            'Regístrate',
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '¿No tienes cuenta?',
                             style: GoogleFonts.roboto(
-                              color: const Color(0xFF5fa65e),
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
+                              letterSpacing: 0.5,
+                              color: textColor,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-
-                  ],
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => RegisterForm()),
+                              );
+                            },
+                            child: Text(
+                              'Regístrate',
+                              style: GoogleFonts.roboto(
+                                color: const Color(0xFF4CAF50),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-
         ],
       ),
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:store_app/views/screens/home_screen.dart';
+import 'package:store_app/views/screens/account_screen.dart';
 
 class MainView extends StatefulWidget {
   const MainView({super.key});
@@ -14,7 +15,7 @@ class _MainViewState extends State<MainView> {
   final List<Widget> _screens = [
     HomeScreen(),
     Center(child: Text('Historial', style: TextStyle(fontSize: 24))),
-    Center(child: Text('Cuenta', style: TextStyle(fontSize: 24))),
+    AccountScreen(),
   ];
 
   @override

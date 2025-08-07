@@ -7,6 +7,7 @@ import 'package:store_app/models/userModel.dart';
 import 'package:store_app/services/response_http.dart';
 import 'package:store_app/views/screens/auth_view/login_form.dart';
 import 'package:store_app/views/screens/main_view.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UserAuthController {
   // Función asíncrona que se llama cuando el usuario presiona "Registrarse"
@@ -14,35 +15,37 @@ class UserAuthController {
     required BuildContext context,
     required String email,
     required String name,
-    required String password
+    required String password,
   }) async {
     final newUser = UserModel(
       id: '',
       name: name,
       email: email,
       password: password,
-      token: ''
+      token: '',
     );
 
     try {
       final ur = Uri.parse('$uri/auth/signup');
       final response = await http.post(
         ur,
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
         body: newUser.toJsonString(),
       );
 
-      responseHttp(response: response, ubication: context, success: (){
-        if (!context.mounted) return;
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginForm()),
-          (route) => false,
-        );
-        statusMessage(context, 'Cuenta registrada con éxito');
-      });
+      responseHttp(
+        response: response,
+        ubication: context,
+        success: () {
+          if (!context.mounted) return;
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginForm()),
+            (route) => false,
+          );
+          statusMessage(context, 'Cuenta registrada con éxito');
+        },
+      );
     } catch (e) {
       debugPrint('Registro fallido: $e');
     }
@@ -51,38 +54,49 @@ class UserAuthController {
   Future<void> loginUsers({
     required BuildContext context,
     required String email,
-    required String password
+    required String password,
   }) async {
-    final loginData = jsonEncode({
-      'email': email,
-      'password': password,
-    });
+    final loginData = jsonEncode({'email': email, 'password': password});
 
     try {
-      final ur = Uri.parse('$uri/auth/signin');
+      final url = Uri.parse('$uri/auth/signin');
       final response = await http.post(
-        ur,
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
+        url,
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
         body: loginData,
       );
 
-      responseHttp(response: response, ubication: context, success: (){
-        debugPrint('Redireccionando a Login...'); // <-- Agrega esto
-        if (!context.mounted) {
-          debugPrint('Context no está montado!'); // <-- Y esto
-          return;
-        }
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const MainView()),
-          (route) => false,
-        );
-        statusMessage(context, 'Has iniciado sesión correctamente');
-      });
+      responseHttp(
+        response: response,
+        ubication: context,
+        success: () async {
+          final data = jsonDecode(response.body);
+
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('user_id', data['id']);
+          await prefs.setString('email', data['email']);
+          await prefs.setString('name', data['name']);
+          await prefs.setString('token', data['token']);
+
+          if (context.mounted) {
+            statusMessage(context, 'Has iniciado sesión correctamente');
+
+            // Small delay for stability
+            await Future.delayed(const Duration(milliseconds: 300));
+
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const MainView()),
+              (route) => false,
+            );
+          }
+        },
+      );
     } catch (e) {
       debugPrint('Error en login: $e');
+      if (context.mounted) {
+        statusMessage(context, 'Error al iniciar sesión: $e');
+      }
     }
   }
-} 
+}

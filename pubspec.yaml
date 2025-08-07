@@ -11,6 +11,7 @@ dependencies:
     sdk: flutter
 
   #
+  shared_preferences: ^2.2.2  #Para globalizar información entre Widgets
   tflite_flutter: ^0.11.0
   image_picker: ^0.8.8+3       # Para tomar fotos
   image: ^3.1.0               # Para preprocesamiento básico
