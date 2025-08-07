@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:store_app/views/screens/auth_view/secure_storage_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:store_app/global_variables.dart';
 import 'package:store_app/views/screens/auth_view/login_form.dart';
 
+////FALTA POR ANALIZAR
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
 
@@ -20,6 +21,8 @@ class _AccountScreenState extends State<AccountScreen>
   late TextEditingController passwordController;
   late AnimationController _controller;
   late Animation<Offset> _slideAnimation;
+
+  final _secureStorage = SecureStorageService();
 
   bool isLoading = false;
   bool isEditing = false;
@@ -47,19 +50,25 @@ class _AccountScreenState extends State<AccountScreen>
   }
 
   Future<void> loadUserData() async {
-    final prefs = await SharedPreferences.getInstance();
+    final userIdValue = await _secureStorage.readSecureData('user_id');
+    final tokenValue = await _secureStorage.readSecureData('token');
+    final nameValue = await _secureStorage.readSecureData('name');
+    final emailValue = await _secureStorage.readSecureData('email');
+    final imageValue = await _secureStorage.readSecureData('profile_image');
+
     setState(() {
-      userId = prefs.getString('user_id');
-      token = prefs.getString('token');
-      nameController.text = prefs.getString('name') ?? '';
-      emailController.text = prefs.getString('email') ?? '';
-      userImage = prefs.getString('profile_image');
+      userId = userIdValue;
+      token = tokenValue;
+      nameController.text = nameValue ?? '';
+      emailController.text = emailValue ?? '';
+      userImage = imageValue;
     });
   }
 
   Future<void> updateAccount() async {
     if (userId == null || token == null) return;
     setState(() => isLoading = true);
+
     try {
       final url = Uri.parse('$uri/auth/update/$userId');
       final response = await http.put(
@@ -76,10 +85,12 @@ class _AccountScreenState extends State<AccountScreen>
               : null,
         }),
       );
+
       if (response.statusCode == 200) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('name', nameController.text);
-        await prefs.setString('email', emailController.text);
+        // Actualiza los valores en el SecureStorage
+        await _secureStorage.writeSecureData('name', nameController.text);
+        await _secureStorage.writeSecureData('email', emailController.text);
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -121,6 +132,7 @@ class _AccountScreenState extends State<AccountScreen>
 
   Future<void> deleteAccount() async {
     if (userId == null || token == null) return;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -146,17 +158,22 @@ class _AccountScreenState extends State<AccountScreen>
         ],
       ),
     );
+
     if (confirm != true) return;
+
     setState(() => isLoading = true);
+
     try {
       final url = Uri.parse('$uri/auth/delete/$userId');
       final response = await http.delete(
         url,
         headers: {'Authorization': 'Bearer $token'},
       );
+
       if (response.statusCode == 200) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.clear();
+        // Borrar los datos almacenados en SecureStorage
+        await _secureStorage.clearAll();
+
         if (context.mounted) {
           Navigator.pushAndRemoveUntil(
             context,
@@ -239,7 +256,7 @@ class _AccountScreenState extends State<AccountScreen>
                     ? NetworkImage(userImage!)
                     : const AssetImage('assets/default_avatar.png')
                           as ImageProvider,
-                backgroundColor: Colors.grey[200],
+                backgroundColor: const Color.fromARGB(255, 36, 123, 48),
               ),
               const SizedBox(height: 20),
               Text(
@@ -314,6 +331,7 @@ class _AccountScreenState extends State<AccountScreen>
                 ),
               ],
               // Botón cerrar sesión
+              // Botón cerrar sesión
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -332,8 +350,8 @@ class _AccountScreenState extends State<AccountScreen>
                     ),
                   ),
                   onPressed: () async {
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.clear();
+                    await _secureStorage.clearAll(); // ✅ Elimina datos seguros
+
                     if (context.mounted) {
                       Navigator.pushAndRemoveUntil(
                         context,

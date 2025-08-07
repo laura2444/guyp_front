@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:store_app/controllers/user_auth_controller.dart';
 import 'package:store_app/views/screens/auth_view/register_form.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:store_app/views/screens/auth_view/secure_storage_service.dart'; // importa tu servicio
 
 class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
@@ -16,6 +16,8 @@ class _LoginFormState extends State<LoginForm> with SingleTickerProviderStateMix
   final _formKey = GlobalKey<FormState>();
   final _auth = UserAuthController();
   bool _PasswordVisible = false;
+
+  final _storage = SecureStorageService(); // instancia global
 
   late String email = '';
   late String password = '';
@@ -48,40 +50,38 @@ class _LoginFormState extends State<LoginForm> with SingleTickerProviderStateMix
     super.dispose();
   }
 
-  Future<void> saveUserSession(Map<String, dynamic> userData) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_id', userData['id']);
-    await prefs.setString('email', userData['email']);
-    await prefs.setString('name', userData['name']);
-    await prefs.setString('token', userData['token']);
- }
+Future<void> saveUserSession(Map<String, dynamic> userData) async {
+  await _storage.saveUserSession(userData);
+}
 
-  Future<void> loginUser() async {
-    final isValid = _formKey.currentState!.validate();
-    if (!isValid) return;
-    _formKey.currentState!.save();
-    setState(() => procesing = true);
-    try {
-      await _auth.loginUsers(
-        context: context,
-        email: email,
-        password: password,
-      );
-      _formKey.currentState!.reset();
-      setState(() {
-        email = '';
-        password = '';
-      });
-    } catch (e) {
-      debugPrint('Error al iniciar sesión: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
-    } 
-    finally {
-      setState(() => procesing = false);
-    }
+Future<void> loginUser() async {
+  final isValid = _formKey.currentState!.validate();
+  if (!isValid) return;
+  _formKey.currentState!.save();
+  setState(() => procesing = true);
+
+  try {
+    await _auth.loginUsers(
+      context: context,
+      email: email,
+      password: password,
+    );
+
+    _formKey.currentState!.reset();
+    setState(() {
+      email = '';
+      password = '';
+    });
+  } catch (e) {
+    debugPrint('Error al iniciar sesión: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: ${e.toString()}')),
+    );
+  } finally {
+    setState(() => procesing = false);
   }
+}
+
 
   @override
   Widget build(BuildContext context) {

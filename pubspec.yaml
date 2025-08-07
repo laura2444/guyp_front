@@ -15,6 +15,7 @@ dependencies:
   tflite_flutter: ^0.11.0
   image_picker: ^0.8.8+3       # Para tomar fotos
   image: ^3.1.0               # Para preprocesamiento básico
+  flutter_secure_storage: ^9.0.0 #Seguridad de encriptado del usuario
 
   flutter_localizations:
     sdk: flutter
