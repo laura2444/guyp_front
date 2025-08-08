@@ -7,10 +7,12 @@ import 'package:store_app/models/userModel.dart';
 import 'package:store_app/services/response_http.dart';
 import 'package:store_app/views/screens/auth_view/login_form.dart';
 import 'package:store_app/views/screens/main_view.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:store_app/views/screens/auth_view/secure_storage_service.dart';
 
 class UserAuthController {
   // Función asíncrona que se llama cuando el usuario presiona "Registrarse"
+  final SecureStorageService _secureStorage = SecureStorageService();
+
   Future<void> registerUsers({
     required BuildContext context,
     required String email,
@@ -72,16 +74,12 @@ class UserAuthController {
         success: () async {
           final data = jsonDecode(response.body);
 
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('user_id', data['id']);
-          await prefs.setString('email', data['email']);
-          await prefs.setString('name', data['name']);
-          await prefs.setString('token', data['token']);
+          // ✅ Guardamos la sesión de forma segura
+          await _secureStorage.saveUserSession(data);
 
           if (context.mounted) {
             statusMessage(context, 'Has iniciado sesión correctamente');
 
-            // Small delay for stability
             await Future.delayed(const Duration(milliseconds: 300));
 
             Navigator.pushAndRemoveUntil(
