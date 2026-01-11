@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:store_app/controllers/user_auth_controller.dart';
 import 'package:store_app/views/screens/auth_view/register_form.dart';
-import 'package:store_app/views/screens/auth_view/secure_storage_service.dart'; // importa tu servicio
+import 'package:store_app/services/secure_storage_service.dart'; // importa tu servicio
 
 class LoginForm extends StatefulWidget {
   const LoginForm({super.key});

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:store_app/views/screens/auth_view/secure_storage_service.dart';
+import 'package:store_app/services/secure_storage_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:store_app/global_variables.dart';
 import 'package:store_app/views/screens/auth_view/login_form.dart';

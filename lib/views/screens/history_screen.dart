@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:store_app/models/plant_analysis_model.dart';
 import 'package:store_app/services/plant_analysis_service.dart';
 import 'package:store_app/widgets/analysis_card.dart';
-import 'package:store_app/views/screens/auth_view/secure_storage_service.dart';
+import 'package:store_app/services/secure_storage_service.dart';
 
 class HistoryScreen extends StatefulWidget {
   @override

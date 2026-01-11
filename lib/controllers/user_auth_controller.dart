@@ -7,7 +7,7 @@ import 'package:store_app/models/userModel.dart';
 import 'package:store_app/services/response_http.dart';
 import 'package:store_app/views/screens/auth_view/login_form.dart';
 import 'package:store_app/views/screens/main_view.dart';
-import 'package:store_app/views/screens/auth_view/secure_storage_service.dart';
+import 'package:store_app/services/secure_storage_service.dart';
 
 class UserAuthController {
   // Función asíncrona que se llama cuando el usuario presiona "Registrarse"

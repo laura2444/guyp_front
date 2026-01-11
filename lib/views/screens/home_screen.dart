@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:store_app/utils/plant_model.dart';
 import 'package:store_app/widgets/custom_app_bar.dart';
 import 'package:store_app/widgets/home/model_selection_card.dart';
+import 'package:store_app/views/screens/classifier_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -126,7 +127,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _navigateToClassifier(PlantModel model) {
-    print('Navegando a clasificador de: $model');
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ClassifierScreen(selectedModel: model),
+      ),
+    );
   }
 
   void _showInfoDialog(BuildContext context) {

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:store_app/models/plant_analysis_model.dart';
 import 'package:store_app/services/plant_analysis_service.dart';
-import 'package:store_app/views/screens/auth_view/secure_storage_service.dart';
+
 
 class AnalysisCard extends StatelessWidget {
   final PlantAnalysisModel analysis;
