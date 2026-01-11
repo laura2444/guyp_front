@@ -1,1 +1,2 @@
-String uri = "https://guypfastapiback-production.up.railway.app";  // 
+String uri = "http://192.168.1.34:8000";
+//

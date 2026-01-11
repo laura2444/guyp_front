@@ -16,7 +16,7 @@ dependencies:
   image_picker: ^0.8.8+3       # Para tomar fotos
   image: ^3.1.0               # Para preprocesamiento básico
   flutter_secure_storage: ^9.0.0 #Seguridad de encriptado del usuario
-
+  geolocator: 14.0.2
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.2

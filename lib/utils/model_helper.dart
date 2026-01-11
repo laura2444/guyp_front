@@ -1,82 +1,105 @@
 import 'dart:typed_data';
+import 'package:store_app/utils/plant_model.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:image/image.dart' as img;
 
 class ModelHelper {
-  static late Interpreter _interpreter;
-  static late List<int> _inputShape;
-  static late List<int> _outputShape;
+  /** Se implementó un gestor de modelos TFLite con carga diferida (lazy loading), permitiendo inicializar
+   * únicamente el modelo requerido en tiempo de ejecución, optimizando el uso de memoria y reduciendo
+   * el tiempo de arranque de la aplicación. */
 
-  static bool _initialized = false;
+  static final Map<PlantModel, Interpreter> _interpreters = {};
+  static final Map<PlantModel, List<int>> _inputShapes = {};
+  static final Map<PlantModel, List<int>> _outputShapes = {};
 
-  /// Inicializa el modelo TFLite desde assets
-  static Future<void> initModel() async {
-    try {
-      _interpreter = await Interpreter.fromAsset(
-        'assets/models/plant_disease_model.tflite',
-        options: InterpreterOptions()..useNnApiForAndroid = true,
-      );
+  static const Map<PlantModel, String> _modelPaths = {
+    PlantModel.tomato: 'assets/models/plant_disease_model.tflite',
+    PlantModel.pepper: 'assets/models/plant_disease_model.tflite',
+    PlantModel.potato: 'assets/models/plant_disease_model.tflite',
+  };
 
-      _inputShape = _interpreter.getInputTensor(0).shape;
-      _outputShape = _interpreter.getOutputTensor(0).shape;
+  /// Carga el modelo solo si aún no está cargado
+  static Future<void> _loadModelIfNeeded(PlantModel model) async {
+    if (_interpreters.containsKey(model)) return;
 
-      _initialized = true;
+    final interpreter = await Interpreter.fromAsset(
+      _modelPaths[model]!,
+      options: InterpreterOptions()..useNnApiForAndroid = true,
+    );
 
-      print("✅ Modelo cargado exitosamente:");
-      print("📥 Entrada: $_inputShape");
-      print("📤 Salida: $_outputShape");
-    } catch (e) {
-      print("❌ Error al cargar el modelo: $e");
-      _initialized = false;
-    }
+    _interpreters[model] = interpreter;
+    _inputShapes[model] = interpreter.getInputTensor(0).shape;
+    _outputShapes[model] = interpreter.getOutputTensor(0).shape;
+
+    print("✅ Modelo $model cargado:");
+    print("📥 ${_inputShapes[model]}");
+    print("📤 ${_outputShapes[model]}");
   }
 
-  /// Clasifica una imagen y retorna la lista de probabilidades
-  static List<double> classifyImage(Uint8List imageBytes) {
-    if (!_initialized) {
-      throw Exception("❌ El modelo no ha sido inicializado.");
-    }
+  /// Clasifica usando el modelo solicitado
+  static Future<List<double>> classifyImage({
+    required PlantModel model,
+    required Uint8List imageBytes,
+  }) async {
+    await _loadModelIfNeeded(model);
 
-    final input = _preprocessImage(imageBytes);
+    final interpreter = _interpreters[model]!;
+    final inputShape = _inputShapes[model]!;
+    final outputShape = _outputShapes[model]!;
 
-    // Crear tensor de salida con la forma adecuada
+    final input = _preprocessImage(imageBytes, inputShape);
+
     final output = List.filled(
-      _outputShape.reduce((a, b) => a * b),
+      outputShape.reduce((a, b) => a * b),
       0.0,
-    ).reshape([_outputShape[0], _outputShape[1]]);
+    ).reshape([outputShape[0], outputShape[1]]);
 
-    _interpreter.run(input, output);
+    interpreter.run(input, output);
 
-    return List<double>.from(output[0]); // Lista de probabilidades
+    return List<double>.from(output[0]);
   }
 
-  /// Preprocesa la imagen para ajustarse al inputShape del modelo
-  static List<List<List<List<double>>>> _preprocessImage(Uint8List imageBytes) {
+  /// Preprocesamiento genérico según el shape del modelo
+  static List<List<List<List<double>>>> _preprocessImage(
+      Uint8List imageBytes, List<int> inputShape) {
+
     final decoded = img.decodeImage(imageBytes);
     if (decoded == null) {
-      throw Exception("❌ No se pudo decodificar la imagen.");
+      throw Exception("No se pudo decodificar la imagen");
     }
 
-    final height = _inputShape[1];
-    final width = _inputShape[2];
-    final channels = _inputShape[3];
+    final height = inputShape[1];
+    final width = inputShape[2];
+    final channels = inputShape[3];
 
     if (channels != 3) {
-      throw Exception("❌ Solo se soportan imágenes RGB (3 canales).");
+      throw Exception("Solo se soporta RGB");
     }
 
     final resized = img.copyResize(decoded, width: width, height: height);
 
-    return List.generate(1, (_) =>
-        List.generate(height, (y) =>
+    return [
+      List.generate(height, (y) =>
           List.generate(width, (x) {
-            final pixel = resized.getPixel(x, y);
-            final r = (img.getRed(pixel) / 127.5) - 1.0;
-            final g = (img.getGreen(pixel) / 127.5) - 1.0;
-            final b = (img.getBlue(pixel) / 127.5) - 1.0;
+            final p = resized.getPixel(x, y);
+            final r = (img.getRed(p) / 127.5) - 1.0;
+            final g = (img.getGreen(p) / 127.5) - 1.0;
+            final b = (img.getBlue(p) / 127.5) - 1.0;
             return [r, g, b];
           })
-        )
-    );
+      )
+    ];
   }
+
+  /// Libera un modelo si ya no se usa
+  static void disposeModel(PlantModel model) {
+    if (_interpreters.containsKey(model)) {
+      _interpreters[model]!.close();
+      _interpreters.remove(model);
+      _inputShapes.remove(model);
+      _outputShapes.remove(model);
+      print("🧹 Modelo $model liberado");
+    }
+  }
+
 }

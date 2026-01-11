@@ -1,161 +1,123 @@
-import 'dart:io';
-import 'dart:typed_data';
+// lib/views/screens/home_screen.dart
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:store_app/utils/model_helper.dart';
+import 'package:store_app/utils/plant_model.dart';
+import 'package:store_app/widgets/custom_app_bar.dart';
+import 'package:store_app/widgets/home/model_selection_card.dart';
 
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({Key? key}) : super(key: key);
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  File? _image;
-  List<double>? _predictions;
-  bool _isLoading = false;
-  bool _modelLoaded = false;
-
-  final List<String> classLabels = [
-    'Bacterial',
-    'Fungal',
-    'Healthy',
-    'Leaf Spots',
-    'Viral',
-  ];
-
   @override
-  void initState() {
-    super.initState();
-    _loadModel();
-  }
-
-  Future<void> _loadModel() async {
-    try {
-      await ModelHelper.initModel();
-      setState(() => _modelLoaded = true);
-    } catch (e) {
-      _showMessage('Error al cargar el modelo: $e');
-    }
-  }
-
-  Future<void> _pickImage(ImageSource source) async {
-    final pickedFile = await ImagePicker().pickImage(source: source);
-    if (pickedFile == null) return;
-
-    setState(() {
-      _image = File(pickedFile.path);
-      _predictions = null;
-      _isLoading = true;
-    });
-
-    try {
-      final bytes = await pickedFile.readAsBytes();
-      final predictions = ModelHelper.classifyImage(Uint8List.fromList(bytes));
-
-      setState(() {
-        _predictions = predictions;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-      _showMessage('Error al procesar imagen: $e');
-    }
-  }
-
-  void _showMessage(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
-
-  Widget _buildImagePreview() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        height: 300,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          image: _image != null
-              ? DecorationImage(
-                  image: FileImage(_image!),
-                  fit: BoxFit.cover,
-                )
-              : null,
-          color: _image == null ? Colors.grey[100] : null,
-        ),
-        child: _image == null
-            ? Center(
-                child: Icon(Icons.image_outlined, size: 80, color: Colors.grey))
-            : null,
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: CustomAppBar(
+        title: 'Clasificador de Plantas',
+        showBackButton: false,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.info_outline),
+            onPressed: () => _showInfoDialog(context),
+          ),
+        ],
       ),
+      body: _buildModelSelection(),
     );
   }
 
-  Widget _buildResult() {
-    if (_predictions == null) return SizedBox();
-
-    final maxProb = _predictions!.reduce((a, b) => a > b ? a : b);
-    final predictedIndex = _predictions!.indexOf(maxProb);
-    final predictedLabel = classLabels[predictedIndex];
-    final confidence = (maxProb * 100).toStringAsFixed(2);
-
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: EdgeInsets.only(top: 20),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Resultado',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            Text(
-              '$predictedLabel',
-              style: TextStyle(fontSize: 22, color: Colors.green[800]),
-            ),
-            Text(
-              'Confianza: $confidence%',
-              style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-            ),
-            SizedBox(height: 12),
-            LinearProgressIndicator(
-              value: maxProb,
-              backgroundColor: Colors.grey[300],
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildButtons() {
+  Widget _buildModelSelection() {
     return Padding(
-      padding: const EdgeInsets.only(top: 30),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      padding: EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ElevatedButton.icon(
-            icon: Icon(Icons.camera_alt),
-            label: Text('Cámara'),
-            onPressed: _modelLoaded ? () => _pickImage(ImageSource.camera) : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green[600],
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          // Header mejorado
+          Container(
+            margin: EdgeInsets.only(bottom: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '👋 ¡Hola!',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.green[800],
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Selecciona el cultivo que deseas analizar',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
             ),
           ),
-          ElevatedButton.icon(
-            icon: Icon(Icons.photo_library),
-            label: Text('Galería'),
-            onPressed: _modelLoaded ? () => _pickImage(ImageSource.gallery) : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.teal[600],
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+
+          // Tarjetas de selección
+          Expanded(
+            child: ListView(
+              children: [
+                ModelSelectionCard(
+                  title: 'Tomate',
+                  type: PlantModel.tomato,
+                  icon: Icons.spa,
+                  color: Colors.red[400]!,
+                  onTap: () => _navigateToClassifier(PlantModel.tomato),
+                ),
+                SizedBox(height: 16),
+
+                ModelSelectionCard(
+                  title: 'Pimiento',
+                  type: PlantModel.pepper,
+                  icon: Icons.local_florist,
+                  color: Colors.green[500]!,
+                  onTap: () => _navigateToClassifier(PlantModel.pepper),
+                ),
+                SizedBox(height: 16),
+
+                ModelSelectionCard(
+                  title: 'Papa',
+                  type: PlantModel.potato,
+                  icon: Icons.grass,
+                  color: Colors.orange[500]!,
+                  onTap: () => _navigateToClassifier(PlantModel.potato),
+                ),
+
+                // Espacio adicional
+                SizedBox(height: 40),
+
+                // Información adicional
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.green[50],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info, color: Colors.green[600], size: 24),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Todos los modelos usan IA entrenada específicamente para cada cultivo',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.green[800],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -163,38 +125,22 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100], // Fondo claro
-      appBar: AppBar(
-        backgroundColor: Colors.green[700],
-        title: Text('Clasificador de Hojas de Tomate'),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(20),
-            child: Column(
-              children: [
-                if (!_modelLoaded)
-                  CircularProgressIndicator()
-                else ...[
-                  _buildImagePreview(),
-                  if (_isLoading)
-                    Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: CircularProgressIndicator(),
-                    )
-                  else
-                    _buildResult(),
-                  _buildButtons(),
-                ],
-              ],
-            ),
+  void _navigateToClassifier(PlantModel model) {
+    print('Navegando a clasificador de: $model');
+  }
+
+  void _showInfoDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Información'),
+        content: Text('Esta app utiliza modelos de IA para detectar enfermedades en plantas agrícolas.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Entendido'),
           ),
-        ),
+        ],
       ),
     );
   }
