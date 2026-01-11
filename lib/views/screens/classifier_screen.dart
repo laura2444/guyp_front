@@ -7,12 +7,17 @@ import 'package:store_app/utils/plant_model.dart';
 import 'package:store_app/widgets/custom_app_bar.dart';
 import 'package:store_app/views/viewmodels/classifier_viewmodel.dart';
 
+import 'ai_analysis_screen.dart';
+import 'analysis_result_screen.dart';
+
 class ClassifierScreen extends StatefulWidget {
   final PlantModel selectedModel;
+  final String userId;
 
   const ClassifierScreen({
     Key? key,
     required this.selectedModel,
+    required this.userId,
   }) : super(key: key);
 
   @override
@@ -28,6 +33,7 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
     super.initState();
     _viewModel = ClassifierViewModel(
       selectedModel: widget.selectedModel,
+      userId: widget.userId,
       onStateChanged: () => setState(() {}),
     );
     _initLocation();
@@ -406,6 +412,7 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
     }
   }
 
+
   Future<void> _uploadToServer() async {
     if (_viewModel.location == null) {
       await _viewModel.getLocation();
@@ -413,18 +420,82 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
 
     final analysisId = await _viewModel.uploadAnalysis();
     if (analysisId != null) {
+      // Navegar a pantalla de resultados
+      _navigateToResultScreen(analysisId);
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✅ Análisis guardado exitosamente'),
-          backgroundColor: Colors.green[600],
+          content: Text('❌ Error al guardar el análisis'),
+          backgroundColor: Colors.red,
         ),
       );
     }
   }
 
+
   Future<void> _generateAI() async {
-    await _viewModel.generateWithAI();
-    // TODO: Navegar a pantalla de resultados de IA
+    final aiResult = await _viewModel.generateWithAI();
+    if (aiResult != null) {
+      // Navegar a pantalla de IA
+      _navigateToAIScreen(aiResult);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error generando IA'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _navigateToResultScreen(String analysisId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AnalysisResultScreen(
+          analysisId: analysisId,
+          prediction: _getPredictionLabel(),
+          confidence: _getConfidence(),
+          crop: _getCropName(),
+          location: _viewModel.location,
+          image: _viewModel.image,
+        ),
+      ),
+    );
+  }
+
+  void _navigateToAIScreen(Map<String, dynamic> aiResult) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AIAnalysisScreen(
+          aiResponse: aiResult,
+          analysisId: _viewModel.analysisId ?? '',
+        ),
+      ),
+    );
+  }
+
+// Métodos auxiliares
+  String _getPredictionLabel() {
+    final labels = ['Bacterial', 'Fungal', 'Healthy', 'Leaf Spots', 'Viral'];
+    final predictions = _viewModel.predictions!;
+    final maxIndex = predictions.indexOf(predictions.reduce((a, b) => a > b ? a : b));
+    return labels[maxIndex];
+  }
+
+  String _getConfidence() {
+    final predictions = _viewModel.predictions!;
+    final maxValue = predictions.reduce((a, b) => a > b ? a : b);
+    return (maxValue * 100).toStringAsFixed(1);
+  }
+
+  String _getCropName() {
+    switch (_viewModel.selectedModel) {
+      case PlantModel.tomato: return 'Tomate';
+      case PlantModel.pepper: return 'Pimiento';
+      case PlantModel.potato: return 'Papa';
+    }
   }
 
   Color _getColorForLabel(String label) {
