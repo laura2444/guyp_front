@@ -4,61 +4,51 @@ import 'package:http/http.dart' as http;
 import 'package:store_app/models/plant_analysis_model.dart';
 import 'package:store_app/global_variables.dart';
 
-Future<bool> uploadAnalysis({
+// ============ ANÁLISIS BÁSICO ============
+
+Future<Map<String, dynamic>> uploadAnalysis({
+  required String plantType,  // 'tomato', 'potato', 'pepper' - NUEVO
   required String userId,
-  required String prediction,
-  required double lat,
-  required double lng,
-  required File imageFile,
-}) async {
-  final url = Uri.parse('$uri/analysis/');
-  final request = http.MultipartRequest('POST', url)
-    ..fields['user_id'] = userId
-    ..fields['prediction'] = prediction
-    ..fields['lat'] = lat.toString()
-    ..fields['lng'] = lng.toString()
-    ..files.add(await http.MultipartFile.fromPath('image', imageFile.path));
-
-  final response = await request.send();
-  return response.statusCode == 200;
-}
-
-Future<List<PlantAnalysisModel>> getUserAnalyses(String userId) async {
-  final url = Uri.parse('$uri/user/$userId/analysis');
-  final response = await http.get(url);
-
-  if (response.statusCode == 200) {
-    final List data = jsonDecode(response.body);
-    return data.map((e) => PlantAnalysisModel.fromJson(e)).toList();
-  } else {
-    throw Exception('Error al cargar análisis');
-  }
-}
-
-Future<bool> deleteAnalysis(String analysisId) async {
-  final url = Uri.parse('$uri/analysis/$analysisId');
-  final response = await http.delete(url);
-  return response.statusCode == 200;
-}
-String getImageUrl(String imageId) {
-  return '$uri/images/$imageId';
-}
-
-// ============ NUEVOS MÉTODOS ============
-
-// 1. Subir análisis con IA (POST /analysis/with-ai)
-Future<Map<String, dynamic>?> uploadAnalysisWithAI({
-  required String userId,
-  required String prediction,
   required double lat,
   required double lng,
   required File imageFile,
 }) async {
   try {
-    final url = Uri.parse('$uri/analysis/with-ai');
+    final url = Uri.parse('$uri/analysis/$plantType');  // CAMBIADO
     final request = http.MultipartRequest('POST', url)
       ..fields['user_id'] = userId
-      ..fields['prediction'] = prediction
+    // ..fields['prediction'] = prediction  // ELIMINADO (lo calcula la API)
+      ..fields['lat'] = lat.toString()
+      ..fields['lng'] = lng.toString()
+      ..files.add(await http.MultipartFile.fromPath('image', imageFile.path));
+
+    final response = await request.send();
+    final responseBody = await http.Response.fromStream(response);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(responseBody.body);
+    } else {
+      throw Exception('Error ${response.statusCode}: ${responseBody.body}');
+    }
+  } catch (e) {
+    print('Error uploadAnalysis: $e');
+    rethrow;
+  }
+}
+
+// ============ ANÁLISIS CON IA ============
+
+Future<Map<String, dynamic>> uploadAnalysisWithAI({
+  required String plantType,  // NUEVO
+  required String userId,
+  required double lat,
+  required double lng,
+  required File imageFile,
+}) async {
+  try {
+    final url = Uri.parse('$uri/analysis/$plantType/with-ai');  // CAMBIADO
+    final request = http.MultipartRequest('POST', url)
+      ..fields['user_id'] = userId
       ..fields['lat'] = lat.toString()
       ..fields['lng'] = lng.toString()
       ..files.add(await http.MultipartFile.fromPath(
@@ -72,64 +62,44 @@ Future<Map<String, dynamic>?> uploadAnalysisWithAI({
 
     if (response.statusCode == 200) {
       return jsonDecode(responseBody.body);
+    } else {
+      throw Exception('Error ${response.statusCode}: ${responseBody.body}');
     }
-    return null;
   } catch (e) {
     print('Error uploadAnalysisWithAI: $e');
-    return null;
+    rethrow;
   }
 }
 
-// 2. Obtener respuesta completa de IA (GET /analysis/{id}/ai)
-Future<Map<String, dynamic>?> getAnalysisAIResponse(String analysisId) async {
+// ============ CRUD ============
+
+Future<List<PlantAnalysisModel>> getUserAnalyses(String userId) async {
   try {
-    final url = Uri.parse('$uri/analysis/$analysisId/ai');
+    final url = Uri.parse('$uri/user/$userId/analysis');
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      final data = jsonDecode(response.body);
+
+      // Manejar diferentes formatos de respuesta
+      if (data is List) {
+        return data.map((e) => PlantAnalysisModel.fromJson(e)).toList();
+      } else if (data is Map && data.containsKey('message')) {
+        // No hay análisis para este usuario
+        return [];
+      } else {
+        throw Exception('Formato de respuesta inesperado');
+      }
+    } else {
+      throw Exception('Error ${response.statusCode}: ${response.body}');
     }
-    return null;
   } catch (e) {
-    print('Error getAnalysisAIResponse: $e');
-    return null;
+    print('Error getUserAnalyses: $e');
+    rethrow;
   }
 }
 
-// 3. Obtener solo el resumen de IA (GET /analysis/{id}/ai/summary)
-Future<Map<String, dynamic>?> getAnalysisAISummary(String analysisId) async {
-  try {
-    final url = Uri.parse('$uri/analysis/$analysisId/ai/summary');
-    final response = await http.get(url);
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    }
-    return null;
-  } catch (e) {
-    print('Error getAnalysisAISummary: $e');
-    return null;
-  }
-}
-
-// 4. Verificar estado de IA (GET /analysis/{id}/ai/status)
-Future<Map<String, dynamic>?> getAnalysisAIStatus(String analysisId) async {
-  try {
-    final url = Uri.parse('$uri/analysis/$analysisId/ai/status');
-    final response = await http.get(url);
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    }
-    return null;
-  } catch (e) {
-    print('Error getAnalysisAIStatus: $e');
-    return null;
-  }
-}
-
-// 5. Obtener análisis específico (GET /analysis/{id})
-Future<PlantAnalysisModel?> getAnalysis(String analysisId) async {
+Future<PlantAnalysisModel> getAnalysis(String analysisId) async {
   try {
     final url = Uri.parse('$uri/analysis/$analysisId');
     final response = await http.get(url);
@@ -137,15 +107,15 @@ Future<PlantAnalysisModel?> getAnalysis(String analysisId) async {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       return PlantAnalysisModel.fromJson(data);
+    } else {
+      throw Exception('Error ${response.statusCode}: ${response.body}');
     }
-    return null;
   } catch (e) {
     print('Error getAnalysis: $e');
-    return null;
+    rethrow;
   }
 }
 
-// 6. Obtener todos los análisis (GET /analysis/)
 Future<List<PlantAnalysisModel>> getAllAnalyses() async {
   try {
     final url = Uri.parse('$uri/analysis/');
@@ -154,10 +124,135 @@ Future<List<PlantAnalysisModel>> getAllAnalyses() async {
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
       return data.map((e) => PlantAnalysisModel.fromJson(e)).toList();
+    } else {
+      throw Exception('Error ${response.statusCode}: ${response.body}');
     }
-    return [];
   } catch (e) {
     print('Error getAllAnalyses: $e');
-    return [];
+    rethrow;
+  }
+}
+
+Future<bool> deleteAnalysis(String analysisId) async {
+  try {
+    final url = Uri.parse('$uri/analysis/$analysisId');
+    final response = await http.delete(url);
+
+    if (response.statusCode == 200) {
+      return true;
+    } else {
+      throw Exception('Error ${response.statusCode}: ${response.body}');
+    }
+  } catch (e) {
+    print('Error deleteAnalysis: $e');
+    rethrow;
+  }
+}
+
+// ============ ENDPOINTS AI ============
+
+Future<Map<String, dynamic>> getAnalysisAIResponse(String analysisId) async {
+  try {
+    final url = Uri.parse('$uri/analysis/$analysisId/ai');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Error ${response.statusCode}: ${response.body}');
+    }
+  } catch (e) {
+    print('Error getAnalysisAIResponse: $e');
+    rethrow;
+  }
+}
+
+Future<Map<String, dynamic>> getAnalysisAISummary(String analysisId) async {
+  try {
+    final url = Uri.parse('$uri/analysis/$analysisId/ai/summary');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Error ${response.statusCode}: ${response.body}');
+    }
+  } catch (e) {
+    print('Error getAnalysisAISummary: $e');
+    rethrow;
+  }
+}
+
+Future<Map<String, dynamic>> getAnalysisAIStatus(String analysisId) async {
+  try {
+    final url = Uri.parse('$uri/analysis/$analysisId/ai/status');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Error ${response.statusCode}: ${response.body}');
+    }
+  } catch (e) {
+    print('Error getAnalysisAIStatus: $e');
+    rethrow;
+  }
+}
+
+// ============ UTILIDADES ============
+
+// Obtener plantas disponibles
+Future<Map<String, dynamic>> getAvailablePlants() async {
+  try {
+    final url = Uri.parse('$uri/plants');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      // Valores por defecto
+      return {
+        'available_plants': ['tomato', 'potato', 'pepper'],
+        'diseases_per_plant': {
+          'tomato': [
+            'Bacterial_spot', 'Early_blight', 'Late_blight', 'Leaf_Mold',
+            'Septoria_leaf_spot', 'Tomato_Yellow_Leaf_Curl_Virus',
+            'Tomato_mosaic_virus', 'Healthy'
+          ],
+          'potato': ['Early_blight', 'Late_blight', 'Healthy'],
+          'pepper': ['Bacterial_spot', 'Healthy'],
+        }
+      };
+    }
+  } catch (e) {
+    print('Error getAvailablePlants: $e');
+    rethrow;
+  }
+}
+
+// URL de imágenes (ajustar según tu API)
+String getImageUrl(String imageId) {
+  return '$uri/images/$imageId';  // Esto depende de cómo sirvas las imágenes
+}
+
+// Validar ObjectId
+bool isValidObjectId(String id) {
+  return RegExp(r'^[0-9a-fA-F]{24}$').hasMatch(id);
+}
+
+// Conversión de nombre de planta
+String normalizePlantType(String plantType) {
+  switch (plantType.toLowerCase()) {
+    case 'tomato':
+      return 'tomato';
+    case 'potato':
+    case 'papa':
+      return 'potato';
+    case 'pepper':
+    case 'pimienta':
+    case 'bell pepper':
+      return 'pepper';
+    default:
+      return 'tomato'; // default
   }
 }

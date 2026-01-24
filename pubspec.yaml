@@ -42,4 +42,5 @@ flutter:
     - assets/images/
     - assets/svg/
     - assets/models/plant_disease_model.tflite
+    - assets/models/tomato_model_resnet50.tflite
 

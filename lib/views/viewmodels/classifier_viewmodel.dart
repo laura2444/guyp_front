@@ -2,15 +2,16 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:geolocator/geolocator.dart';
-import 'package:store_app/utils/model_helper.dart';
 import 'package:store_app/utils/plant_model.dart';
 import 'package:store_app/utils/location-service.dart';
 import '../../services/plant_analysis_service.dart' as PlantAnalysisService;
+import '../../models/plant_analysis_model.dart';
 
 class ClassifierViewModel {
   // Estados
-  final PlantModel selectedModel;
-  final String userId; // ← AGREGADO
+  final String userId;
+  String plantType = 'tomato'; // 'tomato', 'potato', 'pepper' - NUEVO
+  PlantModel? selectedModel; // Ahora nullable
 
   File? _image;
   List<double>? _predictions;
@@ -18,8 +19,8 @@ class ClassifierViewModel {
   bool _isUploading = false;
   Position? _location;
   String? _analysisId;
-  String? _aiAnalysisId;
-  Map<String, dynamic>? _aiResponse;
+  PlantAnalysisModel? _currentAnalysis; // NUEVO
+  AIAnalysisResponse? _aiAnalysis; // NUEVO
 
   // Callback para UI
   final Function()? onStateChanged;
@@ -31,14 +32,23 @@ class ClassifierViewModel {
   bool get isUploading => _isUploading;
   Position? get location => _location;
   String? get analysisId => _analysisId;
-  String? get aiAnalysisId => _aiAnalysisId;
-  Map<String, dynamic>? get aiResponse => _aiResponse;
+  PlantAnalysisModel? get currentAnalysis => _currentAnalysis;
+  AIAnalysisResponse? get aiAnalysis => _aiAnalysis;
+  String get confidencePercentage {
+    if (_currentAnalysis?.confidence != null) {
+      return '${(_currentAnalysis!.confidence * 100).toStringAsFixed(1)}%';
+    }
+    return '';
+  }
 
   ClassifierViewModel({
-    required this.selectedModel,
-    required this.userId, // ← AGREGADO
+    required this.userId,
+    this.plantType = 'tomato',
     this.onStateChanged,
-  });
+  }) {
+    // Mapear plantType a PlantModel para compatibilidad
+    selectedModel = _getPlantModelFromType(plantType);
+  }
 
   // 1. Obtener ubicación
   Future<void> getLocation() async {
@@ -50,28 +60,38 @@ class ClassifierViewModel {
     }
   }
 
-  // 2. Establecer imagen
+  // 2. Cambiar tipo de planta
+  void setPlantType(String type) {
+    plantType = type;
+    selectedModel = _getPlantModelFromType(type);
+    _notifyListeners();
+  }
+
+  // 3. Establecer imagen
   void setImage(File image) {
     _image = image;
     _predictions = null;
     _analysisId = null;
-    _aiAnalysisId = null;
-    _aiResponse = null;
+    _currentAnalysis = null;
+    _aiAnalysis = null;
     _notifyListeners();
   }
 
-  // 3. Procesar imagen con ML
-  Future<void> processImage(Uint8List imageBytes) async {
+  // 4. Procesar imagen con API (ya no con TFLite local)
+  Future<void> processImage() async {
     if (_image == null) return;
 
     _isLoading = true;
     _notifyListeners();
 
     try {
-      _predictions = await ModelHelper.classifyImage(
-        model: selectedModel,
-        imageBytes: imageBytes,
-      );
+      // Aquí podrías mostrar preview mientras se sube
+      print('📤 Subiendo imagen para análisis...');
+
+      // La API ahora hace toda la predicción
+      // Solo preparamos para subir
+      _predictions = [0.0]; // Placeholder
+
     } catch (e) {
       print('Error procesando imagen: $e');
     }
@@ -80,84 +100,65 @@ class ClassifierViewModel {
     _notifyListeners();
   }
 
-  // 4. Subir análisis al backend (sin IA)
-  Future<String?> uploadAnalysis() async {
-    if (_image == null || _predictions == null || _location == null) {
-      print('❌ Faltan datos para subir análisis');
+  // 5. Subir análisis al backend (sin IA)
+  Future<PlantAnalysisModel?> uploadAnalysis() async {
+    if (_image == null || _location == null) {
+      print('❌ Faltan imagen o ubicación');
       return null;
-    }
-
-    // Validar userId
-    if (userId.isEmpty) {
-      print('⚠️ UserId está vacío, usando modo prueba');
-      return _uploadInTestMode();
     }
 
     _isUploading = true;
     _notifyListeners();
 
     try {
-      final labels = ['Bacterial', 'Fungal', 'Healthy', 'Leaf Spots', 'Viral'];
-      final maxIndex = _predictions!.indexOf(_predictions!.reduce((a, b) => a > b ? a : b));
-      final predictedLabel = labels[maxIndex];
+      print('📤 Subiendo análisis para $plantType...');
 
-      print('📤 Subiendo análisis para usuario: $userId');
-
-      // LLAMADA REAL A TU SERVICIO
-      final success = await PlantAnalysisService.uploadAnalysis(
+      // LLAMADA A LA NUEVA API
+      final response = await PlantAnalysisService.uploadAnalysis(
+        plantType: plantType,
         userId: userId,
-        prediction: predictedLabel,
         lat: _location!.latitude,
         lng: _location!.longitude,
         imageFile: _image!,
       );
 
-      if (success) {
+      if (response != null) {
         print('✅ Análisis subido exitosamente');
-        _analysisId = 'real_${DateTime.now().millisecondsSinceEpoch}';
+
+        // Crear modelo con la respuesta
+        _currentAnalysis = PlantAnalysisModel(
+          id: response['analysis_id'] ?? '',
+          userId: userId,
+          plantType: plantType,
+          prediction: response['prediction'] ?? 'Desconocido',
+          classId: response['class_id']?.toInt(),
+          confidence: (response['confidence'] ?? 0.0).toDouble(),
+          location: {'lat': _location!.latitude, 'lng': _location!.longitude},
+          imageId: '', // Se necesita obtener de otra forma
+          createdAt: DateTime.now(),
+        );
+
+        _analysisId = _currentAnalysis!.id;
+
+        print('📊 Resultado: ${_currentAnalysis!.prediction} '
+            '(${(_currentAnalysis!.confidence * 100).toStringAsFixed(1)}%)');
       } else {
         print('❌ Error al subir análisis');
       }
     } catch (e) {
       print('💥 Excepción al subir análisis: $e');
+      _currentAnalysis = null;
     }
 
     _isUploading = false;
     _notifyListeners();
-    return _analysisId;
+    return _currentAnalysis;
   }
 
-  // 4b. Modo prueba (si no hay userId válido)
-  Future<String?> _uploadInTestMode() async {
-    _isUploading = true;
-    _notifyListeners();
-
-    try {
-      final labels = ['Bacterial', 'Fungal', 'Healthy', 'Leaf Spots', 'Viral'];
-      final maxIndex = _predictions!.indexOf(_predictions!.reduce((a, b) => a > b ? a : b));
-      final predictedLabel = labels[maxIndex];
-
-      print('🧪 Modo prueba: Simulando subida de análisis');
-
-      // Simular delay de red
-      await Future.delayed(Duration(seconds: 2));
-
-      _analysisId = 'test_${DateTime.now().millisecondsSinceEpoch}';
-      print('✅ Análisis de prueba creado: $_analysisId');
-
-    } catch (e) {
-      print('Error en modo prueba: $e');
-    }
-
-    _isUploading = false;
-    _notifyListeners();
-    return _analysisId;
-  }
-
-  // 5. Generar análisis con IA
-  Future<Map<String, dynamic>?> generateWithAI() async {
-    if (_image == null || _predictions == null || _location == null) {
-      print('❌ Faltan datos para generar IA');
+  // 6. Generar análisis con IA
+  Future<AIAnalysisResponse?> generateWithAI() async {
+    if (_image == null || _location == null) {
+      print('❌ Faltan imagen o ubicación');
       return null;
     }
 
@@ -165,76 +166,83 @@ class ClassifierViewModel {
     _notifyListeners();
 
     try {
-      final labels = ['Bacterial', 'Fungal', 'Healthy', 'Leaf Spots', 'Viral'];
-      final maxIndex = _predictions!.indexOf(_predictions!.reduce((a, b) => a > b ? a : b));
-      final predictedLabel = labels[maxIndex];
+      print('🤖 Generando análisis con IA para $plantType...');
 
-      // LLAMADA REAL A TU SERVICIO CON IA
+      // LLAMADA A LA NUEVA API CON IA
       final result = await PlantAnalysisService.uploadAnalysisWithAI(
-        userId: userId.isEmpty ? 'test_user' : userId,
-        prediction: predictedLabel,
+        plantType: plantType,
+        userId: userId,
         lat: _location!.latitude,
         lng: _location!.longitude,
         imageFile: _image!,
       );
 
       if (result != null) {
-        _aiAnalysisId = result['id'];
-        _aiResponse = result;
-        print('✅ IA generada. Resultado: $result');
+        print('✅ IA generada exitosamente');
+
+        // Crear respuesta AI
+        _aiAnalysis = AIAnalysisResponse.fromJson(result);
+
+        // También crear análisis completo
+        _currentAnalysis = _aiAnalysis!.toPlantAnalysisModel(
+          userId: userId,
+          location: {'lat': _location!.latitude, 'lng': _location!.longitude},
+          imageId: '', // Se necesita obtener
+        );
+
+        _analysisId = _aiAnalysis!.analysisId;
+
+        print('📊 Resultado IA: ${_aiAnalysis!.prediction} '
+            '(${(_aiAnalysis!.confidence * 100).toStringAsFixed(1)}%)');
       } else {
         print('❌ No se pudo generar IA');
       }
     } catch (e) {
       print('💥 Error generando IA: $e');
-      // Modo prueba si falla
-      return _generateAITestMode();
+      _aiAnalysis = null;
     }
 
     _isUploading = false;
     _notifyListeners();
-    return _aiResponse;
+    return _aiAnalysis;
   }
 
-  // 5b. Modo prueba para IA
-  Future<Map<String, dynamic>> _generateAITestMode() async {
-    print('🧪 Generando IA en modo prueba...');
-    await Future.delayed(Duration(seconds: 3));
-
-    final testResponse = {
-      'id': 'ai_test_${DateTime.now().millisecondsSinceEpoch}',
-      'message': 'Análisis con IA generado (modo prueba)',
-      'ai_response': 'Esta es una respuesta simulada de IA para la predicción.',
-      'summary': {
-        'diagnóstico': 'Simulado',
-        'recomendaciones': 'Estas son recomendaciones de prueba.',
-        'tratamiento': 'Tratamiento simulado sugerido.',
-      },
-      'timestamp': DateTime.now().toString(),
-    };
-
-    _aiAnalysisId = testResponse['id'] as String?;
-    _aiResponse = testResponse;
-
-    _isUploading = false;
-    _notifyListeners();
-
-    return testResponse;
-  }
-
-  // 6. Obtener respuesta de IA (si ya existe)
-  Future<void> fetchAIResponse(String analysisId) async {
-    if (analysisId.startsWith('test_') || analysisId.startsWith('ai_test_')) {
-      print('⚠️ ID de prueba, no se puede obtener respuesta real');
-      return;
-    }
-
+  // 7. Obtener análisis por ID
+  Future<PlantAnalysisModel?> fetchAnalysis(String analysisId) async {
     _isLoading = true;
     _notifyListeners();
 
     try {
-      _aiResponse = await PlantAnalysisService.getAnalysisAIResponse(analysisId);
-      if (_aiResponse != null) {
+      _currentAnalysis = await PlantAnalysisService.getAnalysis(analysisId);
+      if (_currentAnalysis != null) {
+        print('✅ Análisis obtenido: ${_currentAnalysis!.prediction}');
+        _analysisId = analysisId;
+      }
+    } catch (e) {
+      print('Error obteniendo análisis: $e');
+      _currentAnalysis = null;
+    }
+
+    _isLoading = false;
+    _notifyListeners();
+    return _currentAnalysis;
+  }
+
+  // 8. Obtener respuesta de IA para un análisis existente
+  Future<void> fetchAIResponse(String analysisId) async {
+    _isLoading = true;
+    _notifyListeners();
+
+    try {
+      final response = await PlantAnalysisService.getAnalysisAIResponse(analysisId);
+      if (response != null) {
+        // Actualizar el análisis actual con la respuesta AI
+        if (_currentAnalysis != null && _currentAnalysis!.id == analysisId) {
+          _currentAnalysis = _currentAnalysis!.copyWith(
+            aiResponse: response['ai_response'],
+            aiGenerated: true,
+          );
+        }
         print('✅ Respuesta de IA obtenida');
       }
     } catch (e) {
@@ -245,16 +253,49 @@ class ClassifierViewModel {
     _notifyListeners();
   }
 
-  // 7. Reiniciar
+  // 9. Reiniciar
   void reset() {
     _image = null;
     _predictions = null;
     _analysisId = null;
-    _aiAnalysisId = null;
-    _aiResponse = null;
+    _currentAnalysis = null;
+    _aiAnalysis = null;
     _isLoading = false;
     _isUploading = false;
     _notifyListeners();
+  }
+
+  // 10. Utilerías
+  PlantModel _getPlantModelFromType(String type) {
+    switch (type.toLowerCase()) {
+      case 'tomato':
+        return PlantModel.tomato;
+      case 'potato':
+        return PlantModel.potato;
+      case 'pepper':
+        return PlantModel.pepper;
+      default:
+        return PlantModel.tomato;
+    }
+  }
+
+  // Obtener nombre amigable de la planta
+  String get plantDisplayName {
+    switch (plantType) {
+      case 'tomato':
+        return 'Tomate';
+      case 'potato':
+        return 'Papa';
+      case 'pepper':
+        return 'Pimiento';
+      default:
+        return 'Tomate';
+    }
+  }
+
+  // Verificar si el análisis actual es de una planta sana
+  bool get isCurrentAnalysisHealthy {
+    return _currentAnalysis?.isHealthy ?? false;
   }
 
   void _notifyListeners() {

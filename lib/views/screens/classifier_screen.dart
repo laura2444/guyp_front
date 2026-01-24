@@ -1,5 +1,6 @@
 // lib/views/screens/classifier_screen.dart
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,6 +8,7 @@ import 'package:store_app/utils/plant_model.dart';
 import 'package:store_app/widgets/custom_app_bar.dart';
 import 'package:store_app/views/viewmodels/classifier_viewmodel.dart';
 
+import '../../models/plant_analysis_model.dart';
 import 'ai_analysis_screen.dart';
 import 'analysis_result_screen.dart';
 
@@ -31,11 +33,27 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
   @override
   void initState() {
     super.initState();
+
+    // Convertir PlantModel a string para el ViewModel
+    String plantType = '';
+    switch (widget.selectedModel) {
+      case PlantModel.tomato:
+        plantType = 'tomato';
+        break;
+      case PlantModel.pepper:
+        plantType = 'pepper';
+        break;
+      case PlantModel.potato:
+        plantType = 'potato';
+        break;
+    }
+
     _viewModel = ClassifierViewModel(
-      selectedModel: widget.selectedModel,
-      userId: widget.userId,
+      userId: widget.userId,           // Parámetro requerido
+      plantType: plantType,            // Convertido de PlantModel
       onStateChanged: () => setState(() {}),
     );
+
     _initLocation();
   }
 
@@ -65,11 +83,8 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
   }
 
   String _getTitle() {
-    switch (widget.selectedModel) {
-      case PlantModel.tomato: return 'Análisis de Tomate';
-      case PlantModel.pepper: return 'Análisis de Pimiento';
-      case PlantModel.potato: return 'Análisis de Papa';
-    }
+    // Usar el display name del ViewModel
+    return 'Análisis de ${_viewModel.plantDisplayName}';
   }
 
   Widget _buildBody() {
@@ -91,11 +106,13 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
 
           SizedBox(height: 20),
 
-          // 3. Resultados o estado
-          if (_viewModel.isLoading)
+          // 3. Estado de procesamiento
+          if (_viewModel.isLoading || _viewModel.isUploading)
             _buildLoadingIndicator()
-          else if (_viewModel.predictions != null)
-            _buildResultsSection(),
+          else if (_viewModel.currentAnalysis != null)
+            _buildResultsSection()
+          else if (_viewModel.image != null)
+              _buildReadyToProcessSection(),
         ],
       ),
     );
@@ -198,19 +215,69 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
         CircularProgressIndicator(),
         SizedBox(height: 12),
         Text(
-          'Procesando imagen...',
+          _viewModel.isUploading ? 'Subiendo al servidor...' : 'Procesando...',
           style: TextStyle(color: Colors.grey[600]),
         ),
       ],
     );
   }
 
+  Widget _buildReadyToProcessSection() {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text(
+              '📷 Imagen lista',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Presiona el botón para analizar la imagen',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _uploadToServer,
+              icon: Icon(Icons.cloud_upload, size: 20),
+              label: Text('Analizar imagen'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue[600],
+                foregroundColor: Colors.white,
+                minimumSize: Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _generateWithAI,
+              icon: Icon(Icons.auto_awesome, size: 20),
+              label: Text('Analizar con IA'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildResultsSection() {
-    final predictions = _viewModel.predictions!;
-    final labels = ['Bacterial', 'Fungal', 'Healthy', 'Leaf Spots', 'Viral'];
-    final maxIndex = predictions.indexOf(predictions.reduce((a, b) => a > b ? a : b));
-    final predictedLabel = labels[maxIndex];
-    final confidence = (predictions[maxIndex] * 100).toStringAsFixed(1);
+    final analysis = _viewModel.currentAnalysis!;
 
     return Card(
       elevation: 3,
@@ -235,24 +302,26 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _getColorForLabel(predictedLabel).withOpacity(0.1),
+                    color: analysis.isHealthy ? Colors.green.withOpacity(0.1)
+                        : Colors.orange.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: _getColorForLabel(predictedLabel).withOpacity(0.3),
+                      color: analysis.isHealthy ? Colors.green.withOpacity(0.3)
+                          : Colors.orange.withOpacity(0.3),
                     ),
                   ),
                   child: Text(
-                    predictedLabel,
+                    analysis.displayName,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: _getColorForLabel(predictedLabel),
+                      color: analysis.isHealthy ? Colors.green : Colors.orange,
                     ),
                   ),
                 ),
                 Spacer(),
                 Text(
-                  '$confidence% de confianza',
+                  '${(analysis.confidence * 100).toStringAsFixed(1)}% confianza',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
@@ -261,34 +330,51 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
               ],
             ),
             SizedBox(height: 16),
-            // Botón para subir al servidor
+
+            // Botones de acción
             if (_viewModel.analysisId == null && !_viewModel.isUploading)
-              ElevatedButton.icon(
-                onPressed: _uploadToServer,
-                icon: Icon(Icons.cloud_upload, size: 20),
-                label: Text('Guardar análisis en servidor'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[600],
-                  foregroundColor: Colors.white,
-                  minimumSize: Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+              Column(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _uploadToServer,
+                    icon: Icon(Icons.save, size: 20),
+                    label: Text('Guardar análisis'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green[600],
+                      foregroundColor: Colors.white,
+                      minimumSize: Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
                   ),
-                ),
+                  SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _generateWithAI,
+                    icon: Icon(Icons.auto_awesome, size: 20),
+                    label: Text('Generar con IA'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ],
               )
             else if (_viewModel.isUploading)
               Center(
                 child: CircularProgressIndicator(),
               )
             else if (_viewModel.analysisId != null)
-                _buildAnalysisSavedCard(),
+                _buildAnalysisSavedCard(analysis),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAnalysisSavedCard() {
+  Widget _buildAnalysisSavedCard(PlantAnalysisModel analysis) {
     return Container(
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -312,7 +398,7 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
                   ),
                 ),
                 Text(
-                  'ID: ${_viewModel.analysisId!.substring(0, 8)}...',
+                  'ID: ${analysis.id.substring(0, min(8, analysis.id.length))}...',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.green[600],
@@ -321,10 +407,13 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
               ],
             ),
           ),
-          TextButton(
-            onPressed: _generateAI,
-            child: Text('Generar IA'),
-          ),
+          if (analysis.aiGenerated)
+            Icon(Icons.auto_awesome, color: Colors.purple)
+          else
+            TextButton(
+              onPressed: _generateWithAI,
+              child: Text('+ IA'),
+            ),
         ],
       ),
     );
@@ -400,10 +489,6 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
       if (picked != null) {
         final imageFile = File(picked.path);
         _viewModel.setImage(imageFile);
-
-        // Procesar la imagen
-        final bytes = await imageFile.readAsBytes();
-        await _viewModel.processImage(Uint8List.fromList(bytes));
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -412,16 +497,15 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
     }
   }
 
-
   Future<void> _uploadToServer() async {
     if (_viewModel.location == null) {
       await _viewModel.getLocation();
     }
 
-    final analysisId = await _viewModel.uploadAnalysis();
-    if (analysisId != null) {
+    final analysis = await _viewModel.uploadAnalysis();
+    if (analysis != null) {
       // Navegar a pantalla de resultados
-      _navigateToResultScreen(analysisId);
+      _navigateToResultScreen(analysis);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -432,8 +516,11 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
     }
   }
 
+  Future<void> _generateWithAI() async {
+    if (_viewModel.location == null) {
+      await _viewModel.getLocation();
+    }
 
-  Future<void> _generateAI() async {
     final aiResult = await _viewModel.generateWithAI();
     if (aiResult != null) {
       // Navegar a pantalla de IA
@@ -448,15 +535,18 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
     }
   }
 
-  void _navigateToResultScreen(String analysisId) {
+  void _navigateToResultScreen(PlantAnalysisModel analysis) {
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => AnalysisResultScreen(
-          analysisId: analysisId,
-          prediction: _getPredictionLabel(),
-          confidence: _getConfidence(),
-          crop: _getCropName(),
+          analysisId: analysis.id,
+          prediction: analysis.prediction ?? 'Desconocido',
+          confidence: analysis.confidence != null
+              ? '${(analysis.confidence! * 100).toStringAsFixed(1)}'
+              : '0.0',
+          crop: analysis.plantDisplayName,
           location: _viewModel.location,
           image: _viewModel.image,
         ),
@@ -464,48 +554,23 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
     );
   }
 
-  void _navigateToAIScreen(Map<String, dynamic> aiResult) {
+  void _navigateToAIScreen(AIAnalysisResponse aiResult) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => AIAnalysisScreen(
-          aiResponse: aiResult,
-          analysisId: _viewModel.analysisId ?? '',
+          aiResponse: {
+            'analysis_id': aiResult.analysisId,
+            'plant_type': aiResult.plantType,
+            'prediction': aiResult.prediction,
+            'confidence': aiResult.confidence,
+            'ai_generated': aiResult.aiGenerated,
+            'ai_response': aiResult.aiResponse,
+            'message': 'Análisis generado con IA',
+          },
+          analysisId: aiResult.analysisId,
         ),
       ),
     );
-  }
-
-// Métodos auxiliares
-  String _getPredictionLabel() {
-    final labels = ['Bacterial', 'Fungal', 'Healthy', 'Leaf Spots', 'Viral'];
-    final predictions = _viewModel.predictions!;
-    final maxIndex = predictions.indexOf(predictions.reduce((a, b) => a > b ? a : b));
-    return labels[maxIndex];
-  }
-
-  String _getConfidence() {
-    final predictions = _viewModel.predictions!;
-    final maxValue = predictions.reduce((a, b) => a > b ? a : b);
-    return (maxValue * 100).toStringAsFixed(1);
-  }
-
-  String _getCropName() {
-    switch (_viewModel.selectedModel) {
-      case PlantModel.tomato: return 'Tomate';
-      case PlantModel.pepper: return 'Pimiento';
-      case PlantModel.potato: return 'Papa';
-    }
-  }
-
-  Color _getColorForLabel(String label) {
-    switch (label.toLowerCase()) {
-      case 'healthy': return Colors.green;
-      case 'bacterial': return Colors.red;
-      case 'fungal': return Colors.orange;
-      case 'viral': return Colors.purple;
-      case 'leaf spots': return Colors.amber;
-      default: return Colors.blue;
-    }
   }
 }
