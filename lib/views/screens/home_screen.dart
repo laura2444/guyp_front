@@ -31,7 +31,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _userId = session['user_id'];
 
       print('✅ UserID desde SecureStorage: $_userId');
-
     } catch (e) {
       print('Error: $e');
     }
@@ -56,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: CustomAppBar(
         title: 'Clasificador de Plantas',
         showBackButton: false,
@@ -65,13 +65,16 @@ class _HomeScreenState extends State<HomeScreen> {
               if (value == 'logout') _logout();
               if (value == 'debug') _debugSession();
             },
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             itemBuilder: (context) => [
               PopupMenuItem(
                 value: 'debug',
                 child: Row(
                   children: [
-                    Icon(Icons.bug_report, size: 20),
-                    SizedBox(width: 8),
+                    Icon(Icons.bug_report_rounded, size: 20, color: Colors.grey[700]),
+                    SizedBox(width: 12),
                     Text('Depurar sesión'),
                   ],
                 ),
@@ -80,8 +83,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 value: 'logout',
                 child: Row(
                   children: [
-                    Icon(Icons.logout, size: 20, color: Colors.red),
-                    SizedBox(width: 8),
+                    Icon(Icons.logout_rounded, size: 20, color: Colors.red),
+                    SizedBox(width: 12),
                     Text(
                       'Cerrar sesión',
                       style: TextStyle(color: Colors.red),
@@ -90,10 +93,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ],
-            child: Padding(
-              padding: EdgeInsets.all(8),
-              child: Icon(Icons.more_vert),
-            ),
           ),
         ],
       ),
@@ -103,13 +102,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildLoadingScreen() {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 20),
-            Text('Cargando...'),
+            SizedBox(
+              width: 60,
+              height: 60,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+              ),
+            ),
+            SizedBox(height: 24),
+            Text(
+              'Cargando...',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+            ),
           ],
         ),
       ),
@@ -118,49 +131,125 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildNoUserScreen() {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       body: Center(
-        child: Padding(
-          padding: EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.person_off, size: 80, color: Colors.orange),
-              SizedBox(height: 20),
+              // Icono principal
+              Container(
+                padding: EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: Colors.orange[50],
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.person_off_rounded,
+                  size: 80,
+                  color: Colors.orange[400],
+                ),
+              ),
+              SizedBox(height: 32),
+
+              // Título
               Text(
                 'No hay usuario autenticado',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+                textAlign: TextAlign.center,
               ),
-              SizedBox(height: 10),
+              SizedBox(height: 12),
+
+              // Descripción
               Text(
                 'Necesitas iniciar sesión para usar la aplicación',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-              SizedBox(height: 30),
-              ElevatedButton.icon(
-                icon: Icon(Icons.login),
-                label: Text('Ir a Login'),
-                onPressed: _goToLogin,
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 15,
+                  height: 1.4,
                 ),
               ),
-              SizedBox(height: 15),
-              TextButton(
+              SizedBox(height: 32),
+
+              // Botón principal
+              ElevatedButton.icon(
+                icon: Icon(Icons.login_rounded, size: 20),
+                label: Text('Iniciar sesión'),
+                onPressed: _goToLogin,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[600],
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+              ),
+
+              SizedBox(height: 16),
+
+              // Botón depurar
+              TextButton.icon(
+                icon: Icon(Icons.bug_report_rounded, size: 18),
+                label: Text('Depurar almacenamiento'),
                 onPressed: _debugStorage,
-                child: Text('Depurar almacenamiento'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.grey[600],
+                ),
               ),
-              SizedBox(height: 20),
+
+              SizedBox(height: 32),
               Divider(),
-              SizedBox(height: 20),
-              Text(
-                'Modo de prueba:',
-                style: TextStyle(color: Colors.grey),
-              ),
-              SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: _createTestUser,
-                child: Text('Crear usuario de prueba'),
+              SizedBox(height: 32),
+
+              // Sección de prueba
+              Container(
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.science_rounded, color: Colors.blue[600], size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Modo de prueba',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: _createTestUser,
+                      icon: Icon(Icons.person_add_rounded, size: 18),
+                      label: Text('Crear usuario de prueba'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[600],
+                        foregroundColor: Colors.white,
+                        minimumSize: Size(double.infinity, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -194,23 +283,43 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Depuración de Sesión'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.bug_report_rounded, color: Colors.orange[700]),
+            SizedBox(width: 12),
+            Text('Depuración de Sesión'),
+          ],
+        ),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text('user_id: ${session['user_id'] ?? "NULL"}'),
-              Text('Longitud: ${session['user_id']?.length ?? 0}'),
-              Text('email: ${session['email']}'),
-              Text('name: ${session['name']}'),
+              _buildDebugItem('User ID', session['user_id'] ?? "NULL"),
+              _buildDebugItem('Longitud', '${session['user_id']?.length ?? 0}'),
+              _buildDebugItem('Email', session['email'] ?? "NULL"),
+              _buildDebugItem('Nombre', session['name'] ?? "NULL"),
               SizedBox(height: 20),
-              ElevatedButton(
+              ElevatedButton.icon(
                 onPressed: () async {
                   await storage.clearUserSession();
                   Navigator.pop(context);
                   _loadUserId();
                 },
-                child: Text('Borrar sesión'),
+                icon: Icon(Icons.delete_sweep_rounded, size: 18),
+                label: Text('Borrar sesión'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red[600],
+                  foregroundColor: Colors.white,
+                  minimumSize: Size(double.infinity, 44),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 0,
+                ),
               ),
             ],
           ),
@@ -232,23 +341,43 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Depuración de Almacenamiento'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.storage_rounded, color: Colors.blue[700]),
+            SizedBox(width: 12),
+            Text('Almacenamiento'),
+          ],
+        ),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text('user_id: ${session['user_id'] ?? "NULL"}'),
-              Text('email: ${session['email'] ?? "NULL"}'),
-              Text('name: ${session['name'] ?? "NULL"}'),
-              Text('token: ${session['token'] != null ? "Presente" : "NULL"}'),
+              _buildDebugItem('User ID', session['user_id'] ?? "NULL"),
+              _buildDebugItem('Email', session['email'] ?? "NULL"),
+              _buildDebugItem('Nombre', session['name'] ?? "NULL"),
+              _buildDebugItem('Token', session['token'] != null ? "Presente" : "NULL"),
               SizedBox(height: 20),
-              ElevatedButton(
+              ElevatedButton.icon(
                 onPressed: () async {
                   await storage.clearAll();
                   Navigator.pop(context);
                   _loadUserId();
                 },
-                child: Text('Borrar TODO'),
+                icon: Icon(Icons.delete_forever_rounded, size: 18),
+                label: Text('Borrar TODO'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red[600],
+                  foregroundColor: Colors.white,
+                  minimumSize: Size(double.infinity, 44),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 0,
+                ),
               ),
             ],
           ),
@@ -263,8 +392,44 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildDebugItem(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[600],
+            ),
+          ),
+          SizedBox(height: 4),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontFamily: 'monospace',
+                color: Colors.grey[800],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _createTestUser() async {
-    // Crear un ObjectId válido para pruebas
     final mockObjectId = _generateMockObjectId();
 
     final storage = SecureStorageService();
@@ -276,60 +441,128 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     print('👤 Usuario de prueba creado: $mockObjectId');
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 12),
+            Text('Usuario de prueba creado'),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+
     _loadUserId();
   }
 
   String _generateMockObjectId() {
-    // Generar 24 caracteres hexadecimales
     final chars = '0123456789abcdef';
     final random = Random();
     return List.generate(24, (i) => chars[random.nextInt(chars.length)]).join();
   }
 
   Widget _buildModelSelection() {
-    return Padding(
-      padding: EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Selecciona el cultivo',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header
+        Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Selecciona el cultivo',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Elige el tipo de planta que deseas analizar',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey[600],
+                  height: 1.4,
+                ),
+              ),
+            ],
           ),
-          SizedBox(height: 8),
-          Text(
-            'Elige el tipo de planta que deseas analizar',
-            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-          ),
-          SizedBox(height: 32),
+        ),
 
-          ModelSelectionCard(
-            title: 'Tomate',
-            type: PlantModel.tomato,
-            icon: Icons.spa,
-            color: Colors.red,
-            onTap: () => _navigateToClassifier(PlantModel.tomato),
-          ),
-          SizedBox(height: 16),
+        SizedBox(height: 16),
 
-          ModelSelectionCard(
-            title: 'Pimiento',
-            type: PlantModel.pepper,
-            icon: Icons.local_florist,
-            color: Colors.green,
-            onTap: () => _navigateToClassifier(PlantModel.pepper),
-          ),
-          SizedBox(height: 16),
+        // Lista de modelos
+        Expanded(
+          child: ListView(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            physics: BouncingScrollPhysics(),
+            children: [
+              ModelSelectionCard(
+                title: 'Tomate',
+                type: PlantModel.tomato,
+                icon: Icons.spa_rounded,
+                color: Colors.red,
+                onTap: () => _navigateToClassifier(PlantModel.tomato),
+              ),
 
-          ModelSelectionCard(
-            title: 'Papa',
-            type: PlantModel.potato,
-            icon: Icons.grass,
-            color: Colors.orange,
-            onTap: () => _navigateToClassifier(PlantModel.potato),
+              ModelSelectionCard(
+                title: 'Pimiento',
+                type: PlantModel.pepper,
+                icon: Icons.local_florist_rounded,
+                color: Colors.green,
+                onTap: () => _navigateToClassifier(PlantModel.pepper),
+              ),
+
+              ModelSelectionCard(
+                title: 'Papa',
+                type: PlantModel.potato,
+                icon: Icons.grass_rounded,
+                color: Colors.orange,
+                onTap: () => _navigateToClassifier(PlantModel.potato),
+              ),
+
+              SizedBox(height: 8),
+
+              // Tarjeta informativa
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.lightbulb_outline, color: Colors.amber[700], size: 20),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Toma una foto clara de las hojas para obtener mejores resultados',
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              SizedBox(height: 16),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -339,8 +572,16 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_userId == null || _userId!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('❌ Error: No hay usuario autenticado'),
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white),
+              SizedBox(width: 12),
+              Text('No hay usuario autenticado'),
+            ],
+          ),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
       return;
@@ -351,7 +592,7 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(
         builder: (_) => ClassifierScreen(
           selectedModel: model,
-          userId: _userId!, // ← AQUÍ FALTA ESTE PARÁMETRO
+          userId: _userId!,
         ),
       ),
     );

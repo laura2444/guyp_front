@@ -135,16 +135,23 @@ Future<List<PlantAnalysisModel>> getAllAnalyses() async {
 
 Future<bool> deleteAnalysis(String analysisId) async {
   try {
+    print('🗑️ Intentando eliminar análisis: $analysisId');
     final url = Uri.parse('$uri/analysis/$analysisId');
+    print('📡 URL: $url');
+
     final response = await http.delete(url);
+    print('📊 Respuesta: ${response.statusCode} - ${response.body}');
 
     if (response.statusCode == 200) {
+      print('✅ Análisis eliminado correctamente');
       return true;
     } else {
+      print('❌ Error del servidor: ${response.statusCode}');
       throw Exception('Error ${response.statusCode}: ${response.body}');
     }
-  } catch (e) {
-    print('Error deleteAnalysis: $e');
+  } catch (e, stack) {
+    print('💥 Excepción en deleteAnalysis: $e');
+    print('Stack trace: $stack');
     rethrow;
   }
 }
