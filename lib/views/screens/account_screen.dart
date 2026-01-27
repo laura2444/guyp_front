@@ -1,12 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:store_app/services/secure_storage_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:store_app/global_variables.dart';
 import 'package:store_app/views/screens/auth_view/login_form.dart';
 
-////FALTA POR ANALIZAR
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
 
@@ -14,13 +12,10 @@ class AccountScreen extends StatefulWidget {
   State<AccountScreen> createState() => _AccountScreenState();
 }
 
-class _AccountScreenState extends State<AccountScreen>
-    with SingleTickerProviderStateMixin {
+class _AccountScreenState extends State<AccountScreen> {
   late TextEditingController nameController;
   late TextEditingController emailController;
   late TextEditingController passwordController;
-  late AnimationController _controller;
-  late Animation<Offset> _slideAnimation;
 
   final _secureStorage = SecureStorageService();
 
@@ -37,15 +32,6 @@ class _AccountScreenState extends State<AccountScreen>
     nameController = TextEditingController();
     emailController = TextEditingController();
     passwordController = TextEditingController();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0.0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-    _controller.forward();
     loadUserData();
   }
 
@@ -87,15 +73,25 @@ class _AccountScreenState extends State<AccountScreen>
       );
 
       if (response.statusCode == 200) {
-        // Actualiza los valores en el SecureStorage
         await _secureStorage.writeSecureData('name', nameController.text);
         await _secureStorage.writeSecureData('email', emailController.text);
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Cuenta actualizada exitosamente'),
+            SnackBar(
+              content: Row(
+                children: const [
+                  Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                  SizedBox(width: 12),
+                  Text('Cuenta actualizada exitosamente'),
+                ],
+              ),
               backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: const EdgeInsets.all(16),
             ),
           );
           setState(() {
@@ -106,22 +102,12 @@ class _AccountScreenState extends State<AccountScreen>
       } else {
         final error = jsonDecode(response.body);
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: ${error['message'] ?? 'Error inesperado'}'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          _showErrorSnackBar(error['message'] ?? 'Error inesperado');
         }
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error de conexión: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showErrorSnackBar('Error de conexión: $e');
       }
     } finally {
       if (mounted) {
@@ -133,34 +119,6 @@ class _AccountScreenState extends State<AccountScreen>
   Future<void> deleteAccount() async {
     if (userId == null || token == null) return;
 
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('¿Eliminar cuenta?'),
-        content: const Text(
-          'Todos tus datos serán eliminados permanentemente. Esta acción no se puede deshacer.',
-        ),
-        actions: [
-          TextButton(
-            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
-            onPressed: () => Navigator.pop(context, false),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text('Eliminar definitivamente'),
-            onPressed: () => Navigator.pop(context, true),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
     setState(() => isLoading = true);
 
     try {
@@ -171,41 +129,34 @@ class _AccountScreenState extends State<AccountScreen>
       );
 
       if (response.statusCode == 200) {
-        // Borrar los datos almacenados en SecureStorage
         await _secureStorage.clearAll();
 
         if (context.mounted) {
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (_) => const LoginForm()),
-            (route) => false,
+                (route) => false,
           );
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Tu cuenta ha sido eliminada'),
+            SnackBar(
+              content: const Text('Tu cuenta ha sido eliminada'),
               backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           );
         }
       } else {
         final error = jsonDecode(response.body);
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: ${error['message'] ?? 'Error inesperado'}'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          _showErrorSnackBar(error['message'] ?? 'Error inesperado');
         }
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error de conexión: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showErrorSnackBar('Error de conexión: $e');
       }
     } finally {
       if (mounted) {
@@ -214,183 +165,429 @@ class _AccountScreenState extends State<AccountScreen>
     }
   }
 
+  Future<void> logout() async {
+    await _secureStorage.clearAll();
+
+    if (context.mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginForm()),
+            (route) => false,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Has cerrado sesión'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_rounded, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'Mi Cuenta',
-          style: GoogleFonts.poppins(
+          style: TextStyle(
             color: Colors.white,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
           ),
         ),
         backgroundColor: const Color(0xFF317E30),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          IconButton(
-            icon: Icon(isEditing ? Icons.close : Icons.edit),
-            onPressed: () {
-              setState(() {
-                isEditing = !isEditing;
-                if (!isEditing) {
+          if (!isEditing)
+            IconButton(
+              icon: const Icon(Icons.edit_rounded),
+              onPressed: () => setState(() => isEditing = true),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.close_rounded),
+              onPressed: () {
+                setState(() {
+                  isEditing = false;
                   passwordController.clear();
                   loadUserData();
-                }
-              });
-            },
-          ),
+                });
+              },
+            ),
         ],
       ),
-      body: SlideTransition(
-        position: _slideAnimation,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              CircleAvatar(
-                radius: 50,
-                backgroundImage: userImage != null
-                    ? NetworkImage(userImage!)
-                    : const AssetImage('assets/default_avatar.png')
-                          as ImageProvider,
-                backgroundColor: const Color.fromARGB(255, 36, 123, 48),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                nameController.text,
-                style: GoogleFonts.poppins(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                emailController.text,
-                style: GoogleFonts.nunitoSans(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 30),
-              if (isEditing) ...[
-                _buildTextField(nameController, 'Nombre', Icons.person),
-                const SizedBox(height: 15),
-                _buildTextField(
-                  emailController,
-                  'Correo electrónico',
-                  Icons.email,
-                ),
-                const SizedBox(height: 15),
-                _buildPasswordField(),
-                const SizedBox(height: 25),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF317E30),
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: isLoading ? null : updateAccount,
-                    child: isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : Text(
-                            'GUARDAR CAMBIOS',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              color: Colors.white,
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 15),
-              ],
-              if (!isEditing) ...[
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.red),
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: () => _showDeleteConfirmation(context),
-                    child: Text(
-                      'ELIMINAR CUENTA',
-                      style: GoogleFonts.poppins(color: Colors.red),
-                    ),
-                  ),
-                ),
-              ],
-              // Botón cerrar sesión
-              // Botón cerrar sesión
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  label: Text(
-                    'CERRAR SESIÓN',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      color: const Color(0xFF317E30),
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFF317E30)),
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  onPressed: () async {
-                    await _secureStorage.clearAll(); // ✅ Elimina datos seguros
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          children: [
+            // Header con avatar
+            _buildHeader(),
 
-                    if (context.mounted) {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LoginForm()),
-                        (route) => false,
-                      );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Has cerrado sesión'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  },
-                ),
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  if (isEditing) ...[
+                    _buildEditSection(),
+                  ] else ...[
+                    _buildViewSection(),
+                  ],
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildTextField(
-    TextEditingController controller,
-    String label,
-    IconData icon,
-  ) {
+  // ════════════════════════════════════════════════════════════
+  // HEADER
+  // ════════════════════════════════════════════════════════════
+
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 32),
+      decoration: const BoxDecoration(
+        color: Color(0xFF317E30),
+      ),
+      child: Column(
+        children: [
+          Stack(
+            children: [
+              CircleAvatar(
+                radius: 56,
+                backgroundColor: Colors.white,
+                child: CircleAvatar(
+                  radius: 52,
+                  backgroundImage: userImage != null
+                      ? NetworkImage(userImage!)
+                      : null,
+                  backgroundColor: Colors.green.shade100,
+                  child: userImage == null
+                      ? Icon(
+                    Icons.person_rounded,
+                    size: 48,
+                    color: Colors.green.shade700,
+                  )
+                      : null,
+                ),
+              ),
+              if (isEditing)
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.camera_alt_rounded,
+                      size: 18,
+                      color: Colors.green.shade700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            nameController.text.isNotEmpty
+                ? nameController.text
+                : 'Sin nombre',
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            emailController.text,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.white.withOpacity(0.9),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // EDIT SECTION
+  // ════════════════════════════════════════════════════════════
+
+  Widget _buildEditSection() {
+    return Column(
+      children: [
+        _buildTextField(
+          controller: nameController,
+          label: 'Nombre',
+          icon: Icons.person_rounded,
+        ),
+        const SizedBox(height: 16),
+        _buildTextField(
+          controller: emailController,
+          label: 'Correo electrónico',
+          icon: Icons.email_rounded,
+          keyboardType: TextInputType.emailAddress,
+        ),
+        const SizedBox(height: 16),
+        _buildPasswordField(),
+        const SizedBox(height: 28),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF317E30),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 0,
+            ),
+            onPressed: isLoading ? null : updateAccount,
+            child: isLoading
+                ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2.5,
+              ),
+            )
+                : const Text(
+              'Guardar cambios',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // VIEW SECTION
+  // ════════════════════════════════════════════════════════════
+
+  Widget _buildViewSection() {
+    return Column(
+      children: [
+        _buildInfoCard(),
+        const SizedBox(height: 24),
+        _buildActionButtons(),
+      ],
+    );
+  }
+
+  Widget _buildInfoCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Información de la cuenta',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Colors.grey[800],
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildInfoRow(
+            icon: Icons.person_rounded,
+            label: 'Nombre',
+            value: nameController.text,
+          ),
+          const SizedBox(height: 16),
+          _buildInfoRow(
+            icon: Icons.email_rounded,
+            label: 'Correo',
+            value: emailController.text,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.green.shade50,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            icon,
+            size: 20,
+            color: Colors.green.shade700,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey[900],
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Column(
+      children: [
+        // Logout button
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.logout_rounded, size: 20),
+            label: const Text(
+              'Cerrar sesión',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF317E30),
+              side: const BorderSide(color: Color(0xFF317E30)),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: logout,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Delete account button
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.delete_outline_rounded, size: 20),
+            label: const Text(
+              'Eliminar cuenta',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.red,
+              side: const BorderSide(color: Colors.red),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () => _showDeleteConfirmation(context),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // TEXT FIELDS
+  // ════════════════════════════════════════════════════════════
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+  }) {
     return TextFormField(
       controller: controller,
-      style: GoogleFonts.nunitoSans(),
+      keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.nunitoSans(),
         prefixIcon: Icon(icon, color: const Color(0xFF317E30)),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF317E30)),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF317E30), width: 2),
         ),
       ),
     );
@@ -400,47 +597,125 @@ class _AccountScreenState extends State<AccountScreen>
     return TextFormField(
       controller: passwordController,
       obscureText: obscurePassword,
-      style: GoogleFonts.nunitoSans(),
       decoration: InputDecoration(
         labelText: 'Nueva contraseña (opcional)',
-        labelStyle: GoogleFonts.nunitoSans(),
-        prefixIcon: const Icon(Icons.lock, color: Color(0xFF317E30)),
+        prefixIcon: const Icon(Icons.lock_rounded, color: Color(0xFF317E30)),
         suffixIcon: IconButton(
           icon: Icon(
-            obscurePassword ? Icons.visibility : Icons.visibility_off,
+            obscurePassword ? Icons.visibility_rounded : Icons.visibility_off_rounded,
             color: Colors.grey,
           ),
           onPressed: () => setState(() => obscurePassword = !obscurePassword),
         ),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF317E30)),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF317E30), width: 2),
         ),
       ),
     );
   }
 
+  // ════════════════════════════════════════════════════════════
+  // DIALOGS
+  // ════════════════════════════════════════════════════════════
+
   Future<void> _showDeleteConfirmation(BuildContext context) async {
-    final result = await showDialog(
+    final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirmar eliminación'),
-        content: const Text(
-          '¿Estás seguro de que deseas eliminar tu cuenta permanentemente? Todos tus datos serán perdidos.',
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
-          ),
-        ],
+        contentPadding: const EdgeInsets.all(24),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.warning_rounded,
+                color: Colors.red.shade400,
+                size: 32,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Eliminar cuenta',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Colors.grey[800],
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              '¿Estás seguro? Todos tus datos serán eliminados permanentemente. Esta acción no se puede deshacer.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.grey[700],
+                      side: BorderSide(color: Colors.grey.shade300),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Cancelar',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Eliminar',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
+
     if (result == true) {
       await deleteAccount();
     }
@@ -451,7 +726,6 @@ class _AccountScreenState extends State<AccountScreen>
     nameController.dispose();
     emailController.dispose();
     passwordController.dispose();
-    _controller.dispose();
     super.dispose();
   }
 }
