@@ -222,11 +222,10 @@ Future<Map<String, dynamic>> getAvailablePlants() async {
         'available_plants': ['tomato', 'potato', 'pepper'],
         'diseases_per_plant': {
           'tomato': [
-            'Bacterial_spot', 'Early_blight', 'Late_blight', 'Leaf_Mold',
-            'Septoria_leaf_spot', 'Tomato_Yellow_Leaf_Curl_Virus',
-            'Tomato_mosaic_virus', 'Healthy'
+            'Bacterial_spot', 'Early_blight', 'Healthy', 'Late_blight', 'Leaf_Mold',
+            'Septoria_leaf_spot','Tomato_mosaic_virus', 'Tomato_Yellow_Leaf_Curl_Virus'
           ],
-          'potato': ['Early_blight', 'Late_blight', 'Healthy'],
+          'potato': ['Early_blight','Healthy','Late_blight'],
           'pepper': ['Bacterial_spot', 'Healthy'],
         }
       };
