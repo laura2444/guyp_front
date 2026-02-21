@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'package:store_app/models/weather_model.dart';
 
 class PlantAnalysisModel {
   final String id;
@@ -11,6 +11,7 @@ class PlantAnalysisModel {
   final String imageId;            // Cambiado de imageUrl a imageId
   final Map<String, dynamic>? aiResponse;  // Respuesta de Gemini - NUEVO
   final Map<String, dynamic>? aiSummary;   // Resumen de Gemini - NUEVO
+  final WeatherModel? weather;     // Clima del lugar del análisis (API externa vía backend)
   final bool aiGenerated;          // Si tiene contenido AI - NUEVO
   final DateTime createdAt;
 
@@ -25,6 +26,7 @@ class PlantAnalysisModel {
     required this.imageId,
     this.aiResponse,
     this.aiSummary,
+    this.weather,
     this.aiGenerated = false,
     required this.createdAt,
   });
@@ -43,6 +45,7 @@ class PlantAnalysisModel {
           json['imageId']?.toString() ?? '',
       aiResponse: json['ai_response'] is Map ? Map<String, dynamic>.from(json['ai_response']) : null,
       aiSummary: json['ai_summary'] is Map ? Map<String, dynamic>.from(json['ai_summary']) : null,
+      weather: json['weather'] is Map ? WeatherModel.fromJson(Map<String, dynamic>.from(json['weather'])) : null,
       aiGenerated: json['ai_generated'] ?? false,
       createdAt: _parseDateTime(json['created_at']),
     );
@@ -84,6 +87,7 @@ class PlantAnalysisModel {
       'image_id': imageId,
       'ai_response': aiResponse,
       'ai_summary': aiSummary,
+      'weather': weather?.toJson(),
       'ai_generated': aiGenerated,
       'created_at': createdAt.toIso8601String(),
     };
@@ -128,7 +132,7 @@ class PlantAnalysisModel {
   }
 
   String get plantDisplayName {
-    switch (plantType?.toLowerCase() ?? 'tomato') {
+    switch (plantType.toLowerCase()) {
       case 'tomato':
         return 'Tomate';
       case 'potato':
@@ -152,6 +156,7 @@ class PlantAnalysisModel {
     String? imageId,
     Map<String, dynamic>? aiResponse,
     Map<String, dynamic>? aiSummary,
+    WeatherModel? weather,
     bool? aiGenerated,
     DateTime? createdAt,
   }) {
@@ -166,6 +171,7 @@ class PlantAnalysisModel {
       imageId: imageId ?? this.imageId,
       aiResponse: aiResponse ?? this.aiResponse,
       aiSummary: aiSummary ?? this.aiSummary,
+      weather: weather ?? this.weather,
       aiGenerated: aiGenerated ?? this.aiGenerated,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -185,6 +191,7 @@ class AIAnalysisResponse {
   final double confidence;
   final bool aiGenerated;
   final Map<String, dynamic>? aiResponse;
+  final WeatherModel? weather;
 
   AIAnalysisResponse({
     required this.analysisId,
@@ -193,6 +200,7 @@ class AIAnalysisResponse {
     required this.confidence,
     required this.aiGenerated,
     this.aiResponse,
+    this.weather,
   });
 
   factory AIAnalysisResponse.fromJson(Map<String, dynamic> json) {
@@ -204,6 +212,9 @@ class AIAnalysisResponse {
       aiGenerated: json['ai_generated'] ?? false,
       aiResponse: json['ai_response'] is Map
           ? Map<String, dynamic>.from(json['ai_response'])
+          : null,
+      weather: json['weather'] is Map
+          ? WeatherModel.fromJson(Map<String, dynamic>.from(json['weather']))
           : null,
     );
   }
@@ -222,6 +233,7 @@ class AIAnalysisResponse {
       location: location,
       imageId: imageId,
       aiResponse: aiResponse,
+      weather: weather,
       aiGenerated: aiGenerated,
       createdAt: DateTime.now(),
     );
@@ -235,6 +247,7 @@ class AIAnalysisResponse {
       'confidence': confidence,
       'ai_generated': aiGenerated,
       'ai_response': aiResponse,
+      'weather': weather?.toJson(),
       'message': 'Análisis generado con IA',
     };
   }

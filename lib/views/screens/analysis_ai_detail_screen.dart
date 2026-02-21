@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:store_app/global_variables.dart';
 import 'package:store_app/widgets/custom_app_bar.dart';
+import 'package:store_app/widgets/weather_info_card.dart';
 
 import '../../models/plant_analysis_model.dart';
 
@@ -38,6 +39,10 @@ class AnalysisAIDetailScreen extends StatelessWidget {
                 children: [
                   _buildPlantHeader(),
                   const SizedBox(height: 20),
+                  if (analysis.weather != null) ...[
+                    WeatherInfoCard(weather: analysis.weather!),
+                    const SizedBox(height: 20),
+                  ],
                   _buildDiagnosis(),
                   const SizedBox(height: 24),
                   _buildAISummary(aiSummary),
@@ -58,7 +63,7 @@ class AnalysisAIDetailScreen extends StatelessWidget {
   Widget _buildImage() {
     final imageId = analysis.imageId;
 
-    if (imageId == null || imageId.isEmpty) {
+    if (imageId.isEmpty) {
       return _buildImagePlaceholder(
         Icons.image_not_supported_outlined,
         'Sin imagen',

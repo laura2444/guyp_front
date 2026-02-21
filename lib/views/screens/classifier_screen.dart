@@ -827,10 +827,8 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
       MaterialPageRoute(
         builder: (_) => AnalysisResultScreen(
           analysisId: analysis.id,
-          prediction: analysis.prediction ?? 'Desconocido',
-          confidence: analysis.confidence != null
-              ? '${(analysis.confidence! * 100).toStringAsFixed(1)}'
-              : '0.0',
+          prediction: analysis.prediction,
+          confidence: '${(analysis.confidence * 100).toStringAsFixed(1)}',
           crop: analysis.plantDisplayName,
           location: _viewModel.location,
           image: _viewModel.image,
@@ -851,6 +849,7 @@ class _ClassifierScreenState extends State<ClassifierScreen> {
             'confidence': aiResult.confidence,
             'ai_generated': aiResult.aiGenerated,
             'ai_response': aiResult.aiResponse,
+            'weather': aiResult.weather?.toJson(),
             'message': 'Análisis generado con IA',
           },
           analysisId: aiResult.analysisId,

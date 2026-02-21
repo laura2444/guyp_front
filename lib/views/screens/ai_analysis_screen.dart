@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:store_app/widgets/custom_app_bar.dart';
+import 'package:store_app/widgets/weather_info_card.dart';
+import 'package:store_app/models/weather_model.dart';
 
 class AIAnalysisScreen extends StatelessWidget {
   final Map<String, dynamic> aiResponse;
@@ -11,6 +13,15 @@ class AIAnalysisScreen extends StatelessWidget {
     required this.analysisId,
   }) : super(key: key);
 
+  /// Parsea el objeto weather del mapa de respuesta (puede venir como Map desde el backend).
+  WeatherModel? _parseWeather() {
+    final w = aiResponse['weather'];
+    if (w is Map) {
+      return WeatherModel.fromJson(Map<String, dynamic>.from(w));
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final aiData = aiResponse['ai_response'] ?? {};
@@ -19,6 +30,7 @@ class AIAnalysisScreen extends StatelessWidget {
     final banderasRojas = List<String>.from(aiData['banderas_rojas'] ?? []);
     final cuandoBuscar = aiData['cuando_buscar_atencion'] ?? '';
     final descargo = aiData['descargo'] ?? '';
+    final weather = _parseWeather();
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -35,6 +47,12 @@ class AIAnalysisScreen extends StatelessWidget {
             // Header
             _buildHeader(),
             const SizedBox(height: 24),
+
+            // Clima del lugar del análisis
+            if (weather != null) ...[
+              WeatherInfoCard(weather: weather),
+              const SizedBox(height: 20),
+            ],
 
             // Diagnóstico principal
             _buildDiagnosisSection(mensaje),

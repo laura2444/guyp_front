@@ -1,11 +1,11 @@
 // lib/viewmodels/classifier_viewmodel.dart
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:geolocator/geolocator.dart';
 import 'package:store_app/utils/plant_model.dart';
 import 'package:store_app/utils/location-service.dart';
 import '../../services/plant_analysis_service.dart' as PlantAnalysisService;
 import '../../models/plant_analysis_model.dart';
+import '../../models/weather_model.dart';
 
 class ClassifierViewModel {
   // Estados
@@ -122,29 +122,25 @@ class ClassifierViewModel {
         imageFile: _image!,
       );
 
-      if (response != null) {
-        print('✅ Análisis subido exitosamente');
+      print('✅ Análisis subido exitosamente');
 
-        // Crear modelo con la respuesta
-        _currentAnalysis = PlantAnalysisModel(
-          id: response['analysis_id'] ?? '',
-          userId: userId,
-          plantType: plantType,
-          prediction: response['prediction'] ?? 'Desconocido',
-          classId: response['class_id']?.toInt(),
-          confidence: (response['confidence'] ?? 0.0).toDouble(),
-          location: {'lat': _location!.latitude, 'lng': _location!.longitude},
-          imageId: '', // Se necesita obtener de otra forma
-          createdAt: DateTime.now(),
-        );
+      // Crear modelo con la respuesta
+      _currentAnalysis = PlantAnalysisModel(
+        id: response['analysis_id'] ?? '',
+        userId: userId,
+        plantType: plantType,
+        prediction: response['prediction'] ?? 'Desconocido',
+        classId: response['class_id']?.toInt(),
+        confidence: (response['confidence'] ?? 0.0).toDouble(),
+        location: {'lat': _location!.latitude, 'lng': _location!.longitude},
+        imageId: '', // Se necesita obtener de otra forma
+        createdAt: DateTime.now(),
+      );
 
-        _analysisId = _currentAnalysis!.id;
+      _analysisId = _currentAnalysis!.id;
 
-        print('📊 Resultado: ${_currentAnalysis!.prediction} '
-            '(${(_currentAnalysis!.confidence * 100).toStringAsFixed(1)}%)');
-      } else {
-        print('❌ Error al subir análisis');
-      }
+      print('📊 Resultado: ${_currentAnalysis!.prediction} '
+          '(${(_currentAnalysis!.confidence * 100).toStringAsFixed(1)}%)');
     } catch (e) {
       print('💥 Excepción al subir análisis: $e');
       _currentAnalysis = null;
@@ -177,26 +173,22 @@ class ClassifierViewModel {
         imageFile: _image!,
       );
 
-      if (result != null) {
-        print('✅ IA generada exitosamente');
+      print('✅ IA generada exitosamente');
 
-        // Crear respuesta AI
-        _aiAnalysis = AIAnalysisResponse.fromJson(result);
+      // Crear respuesta AI
+      _aiAnalysis = AIAnalysisResponse.fromJson(result);
 
-        // También crear análisis completo
-        _currentAnalysis = _aiAnalysis!.toPlantAnalysisModel(
-          userId: userId,
-          location: {'lat': _location!.latitude, 'lng': _location!.longitude},
-          imageId: '', // Se necesita obtener
-        );
+      // También crear análisis completo
+      _currentAnalysis = _aiAnalysis!.toPlantAnalysisModel(
+        userId: userId,
+        location: {'lat': _location!.latitude, 'lng': _location!.longitude},
+        imageId: '', // Se necesita obtener
+      );
 
-        _analysisId = _aiAnalysis!.analysisId;
+      _analysisId = _aiAnalysis!.analysisId;
 
-        print('📊 Resultado IA: ${_aiAnalysis!.prediction} '
-            '(${(_aiAnalysis!.confidence * 100).toStringAsFixed(1)}%)');
-      } else {
-        print('❌ No se pudo generar IA');
-      }
+      print('📊 Resultado IA: ${_aiAnalysis!.prediction} '
+          '(${(_aiAnalysis!.confidence * 100).toStringAsFixed(1)}%)');
     } catch (e) {
       print('💥 Error generando IA: $e');
       _aiAnalysis = null;
@@ -235,16 +227,18 @@ class ClassifierViewModel {
 
     try {
       final response = await PlantAnalysisService.getAnalysisAIResponse(analysisId);
-      if (response != null) {
-        // Actualizar el análisis actual con la respuesta AI
-        if (_currentAnalysis != null && _currentAnalysis!.id == analysisId) {
-          _currentAnalysis = _currentAnalysis!.copyWith(
-            aiResponse: response['ai_response'],
-            aiGenerated: true,
-          );
-        }
-        print('✅ Respuesta de IA obtenida');
+      // Actualizar el análisis actual con la respuesta AI y clima si viene
+      if (_currentAnalysis != null && _currentAnalysis!.id == analysisId) {
+        final weather = response['weather'] is Map
+            ? WeatherModel.fromJson(Map<String, dynamic>.from(response['weather']))
+            : null;
+        _currentAnalysis = _currentAnalysis!.copyWith(
+          aiResponse: response['ai_response'],
+          weather: weather,
+          aiGenerated: true,
+        );
       }
+      print('✅ Respuesta de IA obtenida');
     } catch (e) {
       print('Error obteniendo respuesta IA: $e');
     }
