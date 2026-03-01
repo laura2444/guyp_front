@@ -114,16 +114,42 @@ Future<void> loginUser() async {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 16),
-                      Text(
-                        "Inicio de sesión",
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
+                      const SizedBox(height: 40),
+                      Column(
+                        children: [
+                          Container(
+                            width: 90,
+                            height: 90,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF388E3C).withOpacity(0.35),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: ClipOval(
+                              child: Image.asset(
+                                'assets/images/logo.jpg',
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            'GUYP',
+                            style: GoogleFonts.poppins(
+                              fontSize: 36,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF388E3C),
+                              letterSpacing: 6,
+                            ),
+                          ),
+                        ],
                       ),
+                      
                       const SizedBox(height: 8),
                       Text(
                         "Cuida tus plantas con nosotros",
@@ -139,6 +165,16 @@ Future<void> loginUser() async {
                         height: 180,
                       ),*/
                       const SizedBox(height: 30),
+                      Text(
+                        "Inicio de sesión",
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
                       Text(
                         'Correo electrónico',
                         style: GoogleFonts.nunitoSans(
