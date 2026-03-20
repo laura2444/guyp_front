@@ -2,7 +2,6 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
-import 'package:store_app/utils/model_helper.dart';
 import 'package:store_app/utils/plant_model.dart';
 
 class HomeViewModel {
@@ -42,17 +41,6 @@ class HomeViewModel {
     _isLoading = true;
     _notifyListeners();
 
-    try {
-      _predictions = await ModelHelper.classifyImage(
-        model: _selectedModel!,
-        imageBytes: imageBytes,
-      );
-    } catch (e) {
-      print('Error procesando imagen: $e');
-    }
-
-    _isLoading = false;
-    _notifyListeners();
   }
 
   // 4. Reiniciar

@@ -13,7 +13,6 @@ dependencies:
   #
   provider: ^6.1.1
   shared_preferences: ^2.2.2  #Para globalizar información entre Widgets
-  tflite_flutter: ^0.11.0
   image_picker: ^0.8.8+3       # Para tomar fotos
   image: ^3.1.0               # Para preprocesamiento básico
   flutter_secure_storage: ^9.0.0 #Seguridad de encriptado del usuario
@@ -42,6 +41,5 @@ flutter:
     - assets/icons/
     - assets/images/
     - assets/svg/
-    - assets/models/plant_disease_model.tflite
-    - assets/models/tomato_model_resnet50.tflite
+
 
