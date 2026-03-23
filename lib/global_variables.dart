@@ -1,3 +1,3 @@
-String uri = "https://guypfastapiback-production.up.railway.app/";
+String uri = "https://guyp-fastapiback.onrender.com";
 
 //"https://guyp-fastapiback.onrender.com"
